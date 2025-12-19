@@ -6,7 +6,7 @@ Runs without Flask, just scans and sends Discord notifications
 import os
 import json
 import requests
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 # Configuration from environment variables (GitHub Secrets)
 DISCORD_WEBHOOK = os.environ.get('DISCORD_WEBHOOK')
@@ -115,11 +115,27 @@ def calculate_stakes(best_odds, total_investment=100):
     return stakes, round(profit, 2)
 
 
-def find_arbitrage(events, min_roi=0.5, max_roi=5.0):
+def find_arbitrage(events, min_roi=0.5, max_roi=5.0, min_minutes_to_start=30):
     """Find arbitrage opportunities in events with realistic ROI filter"""
     opportunities = []
+    now = datetime.now(timezone.utc)
     
     for event in events:
+        # Check if event starts in at least min_minutes_to_start
+        commence_time_str = event.get('commence_time', '')
+        if commence_time_str:
+            try:
+                commence_time = datetime.fromisoformat(commence_time_str.replace('Z', '+00:00'))
+                minutes_until_start = (commence_time - now).total_seconds() / 60
+                
+                # Skip events that have started or start too soon
+                if minutes_until_start < min_minutes_to_start:
+                    continue
+            except:
+                continue  # Skip if can't parse time
+        else:
+            continue  # Skip if no commence time
+        
         bookmakers = event.get('bookmakers', [])
         if len(bookmakers) < 2:
             continue
@@ -165,7 +181,8 @@ def find_arbitrage(events, min_roi=0.5, max_roi=5.0):
                     'profit': profit,
                     'stakes': stakes,
                     'bets': list(best_odds.values()),
-                    'commence_time': event.get('commence_time', '')
+                    'commence_time': event.get('commence_time', ''),
+                    'minutes_until_start': round(minutes_until_start)
                 })
     
     return opportunities
@@ -198,17 +215,24 @@ def run_scan():
     # Send Discord notifications
     if all_opportunities:
         for opp in all_opportunities[:3]:  # Max 3 notifications
-            stakes = opp['stakes']
+            # Format time until start
+            mins = opp.get('minutes_until_start', 0)
+            if mins >= 60:
+                time_str = f"{mins // 60}h {mins % 60}min"
+            else:
+                time_str = f"{mins}min"
             
             fields = [
                 {"name": "🏆 Sport", "value": opp['sport'], "inline": True},
                 {"name": "📈 ROI", "value": f"{opp['roi']}%", "inline": True},
                 {"name": "💰 Profit", "value": f"€{opp['profit']}", "inline": True},
+                {"name": "⏱️ Startet in", "value": time_str, "inline": True},
                 {"name": "🎯 Match", "value": f"{opp['home_team']} vs {opp['away_team']}", "inline": False},
-                {"name": "💵 Total Investment", "value": "€100.00", "inline": False}
+                {"name": "💵 Investment", "value": "€100", "inline": True}
             ]
             
             # Add stake details for each bet
+            stakes = opp['stakes']
             for name, stake_info in stakes.items():
                 fields.append({
                     "name": f"🎰 {stake_info['bookmaker']}",
