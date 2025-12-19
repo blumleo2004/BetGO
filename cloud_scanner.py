@@ -89,8 +89,34 @@ def get_odds(api_key, sport):
     return []
 
 
-def find_arbitrage(events):
-    """Find arbitrage opportunities in events"""
+def calculate_stakes(best_odds, total_investment=100):
+    """Calculate optimal stake distribution for arbitrage"""
+    implied_probs = {name: 1/bet['odds'] for name, bet in best_odds.items()}
+    total_implied = sum(implied_probs.values())
+    
+    stakes = {}
+    for name, bet in best_odds.items():
+        # Stake proportional to implied probability
+        stake = (implied_probs[name] / total_implied) * total_investment
+        percentage = (stake / total_investment) * 100
+        stakes[name] = {
+            'stake': round(stake, 2),
+            'percentage': round(percentage, 1),
+            'odds': bet['odds'],
+            'bookmaker': bet['bookmaker'],
+            'outcome': name,
+            'potential_return': round(stake * bet['odds'], 2)
+        }
+    
+    # Calculate guaranteed profit
+    min_return = min(s['potential_return'] for s in stakes.values())
+    profit = min_return - total_investment
+    
+    return stakes, round(profit, 2)
+
+
+def find_arbitrage(events, min_roi=0.5, max_roi=5.0):
+    """Find arbitrage opportunities in events with realistic ROI filter"""
     opportunities = []
     
     for event in events:
@@ -126,12 +152,18 @@ def find_arbitrage(events):
         if implied_probs < 1:
             roi = ((1 / implied_probs) - 1) * 100
             
-            if roi >= 0.5:  # Min 0.5% ROI
+            # Filter: Min 0.5%, Max 5% ROI (realistic range)
+            if min_roi <= roi <= max_roi:
+                # Calculate stakes for €100
+                stakes, profit = calculate_stakes(best_odds, 100)
+                
                 opportunities.append({
                     'sport': event.get('sport_key', ''),
                     'home_team': event.get('home_team', ''),
                     'away_team': event.get('away_team', ''),
                     'roi': round(roi, 2),
+                    'profit': profit,
+                    'stakes': stakes,
                     'bets': list(best_odds.values()),
                     'commence_time': event.get('commence_time', '')
                 })
@@ -155,38 +187,55 @@ def run_scan():
     for sport in sports:
         print(f"   Scanning {sport}...")
         events = get_odds(api_key, sport)
-        opportunities = find_arbitrage(events)
+        opportunities = find_arbitrage(events, min_roi=0.5, max_roi=5.0)
         all_opportunities.extend(opportunities)
     
-    print(f"\n📊 Found {len(all_opportunities)} arbitrage opportunities!")
+    # Sort by ROI (best first)
+    all_opportunities.sort(key=lambda x: x['roi'], reverse=True)
+    
+    print(f"\n📊 Found {len(all_opportunities)} realistic arbitrage opportunities!")
     
     # Send Discord notifications
     if all_opportunities:
-        for opp in all_opportunities[:5]:  # Max 5 notifications
+        for opp in all_opportunities[:3]:  # Max 3 notifications
+            stakes = opp['stakes']
+            
             fields = [
                 {"name": "🏆 Sport", "value": opp['sport'], "inline": True},
                 {"name": "📈 ROI", "value": f"{opp['roi']}%", "inline": True},
-                {"name": "🎯 Match", "value": f"{opp['home_team']} vs {opp['away_team']}", "inline": False}
+                {"name": "💰 Profit", "value": f"€{opp['profit']}", "inline": True},
+                {"name": "🎯 Match", "value": f"{opp['home_team']} vs {opp['away_team']}", "inline": False},
+                {"name": "💵 Total Investment", "value": "€100.00", "inline": False}
             ]
             
-            for bet in opp['bets']:
+            # Add stake details for each bet
+            for name, stake_info in stakes.items():
                 fields.append({
-                    "name": f"💰 {bet['bookmaker']}",
-                    "value": f"{bet['outcome']} @ {bet['odds']}",
+                    "name": f"🎰 {stake_info['bookmaker']}",
+                    "value": f"**{stake_info['outcome']}** @ {stake_info['odds']}\n€{stake_info['stake']} ({stake_info['percentage']}%)",
                     "inline": True
                 })
             
+            # Color based on ROI (green gradient)
+            if opp['roi'] >= 2:
+                color = 0x00FF00  # Bright green - great!
+            elif opp['roi'] >= 1:
+                color = 0x7CFC00  # Yellow-green - good
+            else:
+                color = 0x32CD32  # Lime - decent
+            
             send_discord(
-                title=f"🎲 Arbitrage: {opp['roi']}% ROI!",
-                description=f"{opp['home_team']} vs {opp['away_team']}",
-                color=0x00FF00,
+                title=f"💰 Arbitrage: {opp['roi']}% → €{opp['profit']} Profit!",
+                description=f"**{opp['home_team']}** vs **{opp['away_team']}**\nInvestment: €100 → Return: €{100 + opp['profit']:.2f}",
+                color=color,
                 fields=fields
             )
+            print(f"   📤 Sent notification: {opp['home_team']} vs {opp['away_team']} ({opp['roi']}% ROI)")
     else:
         # Send summary even if no opportunities
         send_discord(
-            title="📊 Scan Complete",
-            description=f"Scanned {len(sports)} sports, no arbitrage found",
+            title="📊 Scan Complete - No Arbitrage",
+            description=f"Scanned {len(sports)} sports at {datetime.now().strftime('%H:%M')}\n*Only showing realistic opportunities (0.5-5% ROI)*",
             color=0x3498DB
         )
     
@@ -206,5 +255,8 @@ if __name__ == "__main__":
     else:
         print(f"✅ {len(API_KEYS)} API keys loaded")
     
+    print("📊 ROI filter: 0.5% - 5.0% (realistic only)")
+    
     opportunities = run_scan()
     print(f"\n✅ Scan complete! Found {len(opportunities)} opportunities")
+
