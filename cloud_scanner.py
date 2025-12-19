@@ -15,10 +15,37 @@ API_KEYS = json.loads(os.environ.get('API_KEYS', '[]'))
 # The Odds API configuration
 API_BASE_URL = "https://api.the-odds-api.com/v4"
 
-# Austrian-legal bookmakers
+# All available EU bookmakers for maximum arbitrage coverage
 BOOKMAKERS = [
-    'pinnacle', 'betfair', 'betfair_ex_eu', 'betsson', 
-    'unibet_eu', 'sport888', 'williamhill'
+    # Major International
+    'pinnacle',        # Sharp bookmaker, best odds
+    'betfair_ex_eu',   # Betting exchange
+    'matchbook',       # Betting exchange
+    'sport888',        # 888sport
+    'williamhill',     # William Hill
+    'betsson',         # Betsson
+    'marathonbet',     # Marathon
+    'onexbet',         # 1xBet
+    
+    # German Market
+    'tipico_de',       # Tipico Germany
+    'winamax_de',      # Winamax Germany
+    
+    # Nordic
+    'unibet_se',       # Unibet Sweden  
+    'nordicbet',       # Nordic Bet
+    'coolbet',         # Coolbet
+    'leovegas_se',     # LeoVegas
+    
+    # France
+    'betclic_fr',      # Betclic France
+    'winamax_fr',      # Winamax France
+    'unibet_fr',       # Unibet France
+    
+    # Other EU
+    'unibet_nl',       # Unibet Netherlands
+    'suprabets',       # Suprabets
+    'everygame',       # Everygame
 ]
 
 
