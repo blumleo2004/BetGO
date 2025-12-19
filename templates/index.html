@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BETGO - Arbitrage Scanner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <span class="logo-icon">💰</span>
+                <span class="logo-text">BETGO</span>
+            </div>
+            <span class="tagline">Arbitrage Scanner</span>
+            <a href="/simulation"
+                style="margin-left: 1rem; padding: 0.5rem 1rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; text-decoration: none; border-radius: 6px; font-size: 0.875rem; font-weight: 600;">🎮
+                Simulation</a>
+        </div>
+        <div class="header-right">
+            <div class="api-credits">
+                <span class="credits-label">API Credits</span>
+                <div class="credits-display">
+                    <span id="credits-remaining">--</span>
+                    <span class="credits-divider">/</span>
+                    <span id="credits-total">--</span>
+                </div>
+            </div>
+            <button id="scan-btn" class="btn-primary">
+                <span class="btn-icon">🔍</span>
+                <span>Scan Now</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Filter Panel -->
+        <aside class="filter-panel">
+            <div class="filter-header">
+                <h3>Filters</h3>
+                <button id="reset-filters" class="btn-text">Reset</button>
+            </div>
+
+            <!-- Investment -->
+            <div class="filter-group">
+                <label>Investment (€)</label>
+                <input type="number" id="filter-investment" value="500" min="10" step="10">
+            </div>
+
+            <!-- Min ROI -->
+            <div class="filter-group">
+                <label>Minimum ROI (%)</label>
+                <select id="filter-roi">
+                    <option value="0">Any</option>
+                    <option value="0.5" selected>0.5%+</option>
+                    <option value="1">1%+</option>
+                    <option value="2">2%+</option>
+                    <option value="3">3%+</option>
+                    <option value="5">5%+</option>
+                </select>
+            </div>
+
+            <!-- Timeframe -->
+            <div class="filter-group">
+                <label>Timeframe</label>
+                <select id="filter-timeframe">
+                    <option value="">All upcoming</option>
+                    <option value="1">Next 1 hour</option>
+                    <option value="3">Next 3 hours</option>
+                    <option value="6">Next 6 hours</option>
+                    <option value="12">Next 12 hours</option>
+                    <option value="24" selected>Next 24 hours</option>
+                    <option value="48">Next 48 hours</option>
+                    <option value="168">Next 7 days</option>
+                </select>
+            </div>
+
+            <!-- Markets -->
+            <div class="filter-group">
+                <label>Markets</label>
+                <div class="checkbox-group">
+                    <label class="checkbox">
+                        <input type="checkbox" value="h2h" checked>
+                        <span>Moneyline (1X2)</span>
+                    </label>
+                    <label class="checkbox">
+                        <input type="checkbox" value="spreads" checked>
+                        <span>Spreads</span>
+                    </label>
+                    <label class="checkbox">
+                        <input type="checkbox" value="totals" checked>
+                        <span>Over/Under</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Sports -->
+            <div class="filter-group">
+                <label>Sports</label>
+                <div class="checkbox-group sports-list" id="sports-filter">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Bookmakers -->
+            <div class="filter-group">
+                <label>Bookmakers</label>
+                <div class="checkbox-group bookmakers-list" id="bookmakers-filter">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
+            <!-- Auto Refresh -->
+            <div class="filter-group">
+                <label class="checkbox auto-refresh">
+                    <input type="checkbox" id="auto-refresh">
+                    <span>Auto-refresh (60s)</span>
+                </label>
+            </div>
+        </aside>
+
+        <!-- Results Area -->
+        <section class="results-area">
+            <!-- Stats Bar -->
+            <div class="stats-bar">
+                <div class="stat">
+                    <span class="stat-value" id="total-opportunities">0</span>
+                    <span class="stat-label">Opportunities</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="best-roi">0%</span>
+                    <span class="stat-label">Best ROI</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="total-profit">€0</span>
+                    <span class="stat-label">Potential Profit</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="last-scan">Never</span>
+                    <span class="stat-label">Last Scan</span>
+                </div>
+            </div>
+
+            <!-- Opportunities Table -->
+            <div class="table-container">
+                <table class="opportunities-table">
+                    <thead>
+                        <tr>
+                            <th>Event</th>
+                            <th>Sport</th>
+                            <th>Time</th>
+                            <th>Market</th>
+                            <th>ROI</th>
+                            <th>Profit</th>
+                            <th>Bets</th>
+                        </tr>
+                    </thead>
+                    <tbody id="opportunities-body">
+                        <!-- Dynamically populated -->
+                    </tbody>
+                </table>
+
+                <!-- Empty State -->
+                <div class="empty-state" id="empty-state">
+                    <div class="empty-icon">🎯</div>
+                    <h3>No arbitrage opportunities found</h3>
+                    <p>Try adjusting your filters or check back later</p>
+                </div>
+
+                <!-- Loading State -->
+                <div class="loading-state" id="loading-state" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Scanning markets...</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Bookmaker Reference Modal -->
+    <div class="modal" id="bookmaker-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Bookmaker Quick Links</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="bookmaker-links">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+
+</html>

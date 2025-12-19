@@ -1,0 +1,21 @@
+# BETGO - Arbitrage Scanner
+
+## Dependencies
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+venv/
+.venv/
+
+## Secrets - NEVER commit these!
+api_keys.json
+discord_config.json
+
+## IDE
+.vscode/
+.idea/
+
+## Data files
+simulation_data.json
+*.log

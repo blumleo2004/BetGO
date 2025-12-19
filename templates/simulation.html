@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BETGO - Simulation Mode</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        .simulation-badge {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #000;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-left: 0.75rem;
+        }
+
+        .sim-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .sim-stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1.25rem;
+        }
+
+        .sim-stat-card.highlight {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 20px rgba(0, 212, 170, 0.15);
+        }
+
+        .sim-stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+
+        .sim-stat-value.positive {
+            color: var(--accent-success);
+        }
+
+        .sim-stat-value.negative {
+            color: var(--accent-danger);
+        }
+
+        .sim-stat-value.neutral {
+            color: var(--text-primary);
+        }
+
+        .sim-stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 0.25rem;
+        }
+
+        .pending-bets,
+        .bet-history,
+        .analytics-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+
+        .bet-card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-left: 3px solid var(--accent-warning);
+        }
+
+        .bet-card.settled {
+            border-left-color: var(--accent-success);
+        }
+
+        .bet-card.lost {
+            border-left-color: var(--accent-danger);
+        }
+
+        .bet-event {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .bet-meta {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .bet-legs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 0.5rem;
+        }
+
+        .bet-leg {
+            background: var(--bg-primary);
+            padding: 0.5rem 0.75rem;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+        }
+
+        .settle-btn {
+            padding: 0.5rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: var(--transition);
+        }
+
+        .settle-btn:hover {
+            background: var(--accent-primary);
+            color: var(--bg-primary);
+        }
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        .analytics-card {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+        }
+
+        .analytics-card h4 {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .analytics-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.375rem 0;
+            font-size: 0.875rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .analytics-row:last-child {
+            border-bottom: none;
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn-secondary {
+            padding: 0.625rem 1.25rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--accent-danger);
+            color: var(--accent-danger);
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .nav-link:hover {
+            color: var(--accent-primary);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">
+                <span class="logo-icon">🎮</span>
+                <span class="logo-text">BETGO</span>
+            </div>
+            <span class="simulation-badge">Simulation Mode</span>
+            <a href="/" class="nav-link" style="margin-left: 1rem;">← Back to Scanner</a>
+        </div>
+        <div class="header-right">
+            <button id="export-btn" class="btn-secondary">📥 Export CSV</button>
+            <button id="reset-btn" class="btn-secondary btn-danger">🔄 Reset</button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content" style="display: block; max-width: 1400px; margin: 0 auto;">
+        <!-- Stats Grid -->
+        <div class="sim-stats-grid">
+            <div class="sim-stat-card highlight">
+                <div class="sim-stat-value neutral" id="total-bankroll">€1,000.00</div>
+                <div class="sim-stat-label">Total Bankroll</div>
+            </div>
+            <div class="sim-stat-card">
+                <div class="sim-stat-value neutral" id="available-bankroll">€1,000.00</div>
+                <div class="sim-stat-label">Available</div>
+            </div>
+            <div class="sim-stat-card">
+                <div class="sim-stat-value" id="profit-loss">€0.00</div>
+                <div class="sim-stat-label">Profit/Loss</div>
+            </div>
+            <div class="sim-stat-card">
+                <div class="sim-stat-value" id="total-roi">0.00%</div>
+                <div class="sim-stat-label">Total ROI</div>
+            </div>
+        </div>
+
+        <div class="sim-stats-grid">
+            <div class="sim-stat-card">
+                <div class="sim-stat-value neutral" id="total-bets">0</div>
+                <div class="sim-stat-label">Total Bets</div>
+            </div>
+            <div class="sim-stat-card">
+                <div class="sim-stat-value" style="color: var(--accent-warning);" id="pending-count">0</div>
+                <div class="sim-stat-label">Pending</div>
+            </div>
+            <div class="sim-stat-card">
+                <div class="sim-stat-value positive" id="won-count">0</div>
+                <div class="sim-stat-label">Won</div>
+            </div>
+            <div class="sim-stat-card">
+                <div class="sim-stat-value negative" id="lost-count">0</div>
+                <div class="sim-stat-label">Lost</div>
+            </div>
+        </div>
+
+        <!-- Pending Bets -->
+        <div class="pending-bets">
+            <div class="section-header">
+                <h3 class="section-title">⏳ Pending Bets</h3>
+                <span id="pending-total">0 bets</span>
+            </div>
+            <div id="pending-bets-list">
+                <p style="color: var(--text-muted);">No pending bets. Place bets from the main scanner!</p>
+            </div>
+        </div>
+
+        <!-- Analytics -->
+        <div class="analytics-section">
+            <div class="section-header">
+                <h3 class="section-title">📊 Strategy Analytics</h3>
+            </div>
+            <div class="analytics-grid" id="analytics-grid">
+                <div class="analytics-card">
+                    <h4>By Sport</h4>
+                    <div id="analytics-sport">No data yet</div>
+                </div>
+                <div class="analytics-card">
+                    <h4>By Market</h4>
+                    <div id="analytics-market">No data yet</div>
+                </div>
+                <div class="analytics-card">
+                    <h4>By ROI Range</h4>
+                    <div id="analytics-roi">No data yet</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bet History -->
+        <div class="bet-history">
+            <div class="section-header">
+                <h3 class="section-title">📜 Bet History</h3>
+            </div>
+            <div id="bet-history-list">
+                <p style="color: var(--text-muted);">No bets placed yet.</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Load simulation data
+        async function loadSimulationData() {
+            try {
+                const [statsRes, pendingRes, historyRes, analyticsRes] = await Promise.all([
+                    fetch('/api/simulation/stats'),
+                    fetch('/api/simulation/pending'),
+                    fetch('/api/simulation/history'),
+                    fetch('/api/simulation/analytics')
+                ]);
+
+                const stats = await statsRes.json();
+                const pending = await pendingRes.json();
+                const history = await historyRes.json();
+                const analytics = await analyticsRes.json();
+
+                updateStats(stats);
+                updatePendingBets(pending);
+                updateHistory(history);
+                updateAnalytics(analytics);
+            } catch (error) {
+                console.error('Failed to load simulation data:', error);
+            }
+        }
+
+        function updateStats(stats) {
+            const bankroll = stats.bankroll || {};
+            const statistics = stats.statistics || {};
+
+            document.getElementById('total-bankroll').textContent = `€${(bankroll.total || 1000).toFixed(2)}`;
+            document.getElementById('available-bankroll').textContent = `€${(bankroll.available || 1000).toFixed(2)}`;
+
+            const pl = statistics.profit_loss || 0;
+            const plEl = document.getElementById('profit-loss');
+            plEl.textContent = `€${pl.toFixed(2)}`;
+            plEl.className = `sim-stat-value ${pl > 0 ? 'positive' : pl < 0 ? 'negative' : 'neutral'}`;
+
+            const roi = statistics.roi || 0;
+            const roiEl = document.getElementById('total-roi');
+            roiEl.textContent = `${roi.toFixed(2)}%`;
+            roiEl.className = `sim-stat-value ${roi > 0 ? 'positive' : roi < 0 ? 'negative' : 'neutral'}`;
+
+            document.getElementById('total-bets').textContent = statistics.total_bets || 0;
+            document.getElementById('pending-count').textContent = statistics.pending || 0;
+            document.getElementById('won-count').textContent = statistics.won || 0;
+            document.getElementById('lost-count').textContent = statistics.lost || 0;
+        }
+
+        function updatePendingBets(pending) {
+            const container = document.getElementById('pending-bets-list');
+            document.getElementById('pending-total').textContent = `${pending.length} bets`;
+
+            if (pending.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-muted);">No pending bets. Place bets from the main scanner!</p>';
+                return;
+            }
+
+            container.innerHTML = pending.map(bet => `
+                <div class="bet-card">
+                    <div class="bet-event">${bet.event}</div>
+                    <div class="bet-meta">
+                        <span>🏆 ${bet.sport_title || bet.sport}</span>
+                        <span>📊 ${bet.market}${bet.line ? ` (${bet.line})` : ''}</span>
+                        <span>💰 €${bet.total_stake.toFixed(2)}</span>
+                        <span>📈 Expected: ${bet.expected_roi}% ROI</span>
+                    </div>
+                    <div class="bet-legs">
+                        ${bet.legs.map(leg => `
+                            <div class="bet-leg">
+                                <strong>${leg.outcome}</strong> @ ${leg.odds} 
+                                <br>€${leg.stake.toFixed(2)} → ${leg.bookmaker}
+                                <br>
+                                <button class="settle-btn" onclick="settleBet(${bet.id}, '${leg.outcome}')">
+                                    ✓ ${leg.outcome} Won
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateHistory(history) {
+            const container = document.getElementById('bet-history-list');
+            const settled = history.filter(b => b.status === 'settled');
+
+            if (settled.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-muted);">No settled bets yet.</p>';
+                return;
+            }
+
+            container.innerHTML = settled.slice(0, 20).map(bet => {
+                const isWin = bet.actual_profit > 0;
+                return `
+                    <div class="bet-card ${isWin ? 'settled' : 'lost'}">
+                        <div class="bet-event">${bet.event}</div>
+                        <div class="bet-meta">
+                            <span>🏆 ${bet.sport_title || bet.sport}</span>
+                            <span>📊 ${bet.market}</span>
+                            <span>💰 Staked: €${bet.total_stake.toFixed(2)}</span>
+                            <span style="color: ${isWin ? 'var(--accent-success)' : 'var(--accent-danger)'}">
+                                ${isWin ? '✅' : '❌'} ${isWin ? '+' : ''}€${bet.actual_profit.toFixed(2)}
+                            </span>
+                            <span>🎯 Winner: ${bet.winning_outcome}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateAnalytics(analytics) {
+            if (analytics.total_settled === 0 || analytics.message) {
+                return;
+            }
+
+            // By Sport
+            const sportEl = document.getElementById('analytics-sport');
+            if (analytics.by_sport) {
+                sportEl.innerHTML = Object.entries(analytics.by_sport).map(([sport, data]) => `
+                    <div class="analytics-row">
+                        <span>${sport}</span>
+                        <span style="color: ${data.profit >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)'}">
+                            €${data.profit.toFixed(2)} (${data.bets} bets)
+                        </span>
+                    </div>
+                `).join('');
+            }
+
+            // By Market
+            const marketEl = document.getElementById('analytics-market');
+            if (analytics.by_market) {
+                marketEl.innerHTML = Object.entries(analytics.by_market).map(([market, data]) => `
+                    <div class="analytics-row">
+                        <span>${market}</span>
+                        <span style="color: ${data.profit >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)'}">
+                            €${data.profit.toFixed(2)} (${data.bets} bets)
+                        </span>
+                    </div>
+                `).join('');
+            }
+
+            // By ROI Range
+            const roiEl = document.getElementById('analytics-roi');
+            if (analytics.by_roi_range) {
+                roiEl.innerHTML = Object.entries(analytics.by_roi_range).map(([range, data]) => `
+                    <div class="analytics-row">
+                        <span>${range}</span>
+                        <span>${data.wins}/${data.bets} wins (€${data.profit.toFixed(2)})</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function settleBet(betId, winningOutcome) {
+            try {
+                const response = await fetch('/api/simulation/settle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bet_id: betId, winning_outcome: winningOutcome })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert(result.message);
+                    loadSimulationData();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Failed to settle bet:', error);
+            }
+        }
+
+        document.getElementById('reset-btn').addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to reset the simulation? All data will be lost!')) return;
+
+            const bankroll = prompt('Enter starting bankroll (€):', '1000');
+            if (!bankroll) return;
+
+            try {
+                await fetch('/api/simulation/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ starting_bankroll: parseFloat(bankroll) })
+                });
+                loadSimulationData();
+                alert('Simulation reset!');
+            } catch (error) {
+                console.error('Failed to reset:', error);
+            }
+        });
+
+        document.getElementById('export-btn').addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/simulation/export');
+                const result = await response.json();
+                if (result.success) {
+                    alert('Exported to: ' + result.path);
+                }
+            } catch (error) {
+                console.error('Failed to export:', error);
+            }
+        });
+
+        // Initial load
+        loadSimulationData();
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadSimulationData, 30000);
+    </script>
+</body>
+
+</html>

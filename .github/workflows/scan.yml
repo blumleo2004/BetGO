@@ -1,0 +1,42 @@
+name: BETGO Arbitrage Scanner
+
+on:
+  schedule:
+    # Run every 30 minutes during peak hours (17:00-22:00 UTC+1 = 16:00-21:00 UTC)
+    - cron: '0 16 * * *'   # 17:00 CET
+    - cron: '30 16 * * *'  # 17:30 CET
+    - cron: '0 17 * * *'   # 18:00 CET
+    - cron: '30 17 * * *'  # 18:30 CET
+    - cron: '0 18 * * *'   # 19:00 CET
+    - cron: '30 18 * * *'  # 19:30 CET
+    - cron: '0 19 * * *'   # 20:00 CET
+    - cron: '30 19 * * *'  # 20:30 CET
+    - cron: '0 20 * * *'   # 21:00 CET
+    - cron: '30 20 * * *'  # 21:30 CET
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install requests
+      
+      - name: Run Arbitrage Scanner
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          API_KEYS: ${{ secrets.API_KEYS }}
+        run: |
+          python cloud_scanner.py
