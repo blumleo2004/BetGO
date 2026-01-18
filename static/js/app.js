@@ -20,9 +20,6 @@ const totalOpportunities = document.getElementById('total-opportunities');
 const bestRoi = document.getElementById('best-roi');
 const totalProfit = document.getElementById('total-profit');
 const lastScan = document.getElementById('last-scan');
-const sportsFilter = document.getElementById('sports-filter');
-const bookmakersFilter = document.getElementById('bookmakers-filter');
-const autoRefreshCheckbox = document.getElementById('auto-refresh');
 const resetFiltersBtn = document.getElementById('reset-filters');
 const toastContainer = document.getElementById('toast-container');
 
@@ -49,36 +46,13 @@ async function loadConfig() {
 }
 
 function populateFilters() {
-    // Populate sports filter
-    if (config.sports) {
-        sportsFilter.innerHTML = Object.entries(config.sports).map(([key, name]) => `
-            <label class="checkbox">
-                <input type="checkbox" value="${key}" checked>
-                <span>${name}</span>
-            </label>
-        `).join('');
-    }
-
-    // Populate bookmakers filter
-    if (config.bookmakers) {
-        bookmakersFilter.innerHTML = Object.entries(config.bookmakers).map(([key, data]) => `
-            <label class="checkbox">
-                <input type="checkbox" value="${key}" checked>
-                <span style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span class="book-dot" style="background: ${data.color}"></span>
-                    ${data.name}
-                </span>
-            </label>
-        `).join('');
-    }
+    // The new design does not have dynamic filters for sports and bookmakers,
+    // so this function is now empty.
 }
 
 function setupEventListeners() {
     // Scan button
     scanBtn.addEventListener('click', scanForArbitrage);
-
-    // Auto-refresh toggle
-    autoRefreshCheckbox.addEventListener('change', toggleAutoRefresh);
 
     // Reset filters
     resetFiltersBtn.addEventListener('click', resetFilters);
@@ -94,26 +68,13 @@ function setupEventListeners() {
 }
 
 function getFilters() {
-    // Get selected sports
-    const sports = Array.from(sportsFilter.querySelectorAll('input:checked'))
-        .map(el => el.value);
-
-    // Get selected markets
-    const markets = Array.from(document.querySelectorAll('.filter-group .checkbox-group input[value="h2h"], .filter-group .checkbox-group input[value="spreads"], .filter-group .checkbox-group input[value="totals"]'))
-        .filter(el => el.checked)
-        .map(el => el.value);
-
-    // Get selected bookmakers
-    const bookmakers = Array.from(bookmakersFilter.querySelectorAll('input:checked'))
-        .map(el => el.value);
-
     return {
-        sports: sports.length ? sports.join(',') : '',
-        markets: markets.length ? markets.join(',') : 'h2h,spreads,totals',
-        bookmakers: bookmakers.length ? bookmakers.join(',') : '',
+        sports: '', // All sports
+        markets: 'h2h,spreads,totals', // All markets
+        bookmakers: '', // All bookmakers
         min_roi: document.getElementById('filter-roi').value || '0.5',
         investment: document.getElementById('filter-investment').value || '500',
-        hours: document.getElementById('filter-timeframe').value || ''
+        hours: '' // All upcoming
     };
 }
 
@@ -121,8 +82,9 @@ async function scanForArbitrage() {
     if (isScanning) return;
 
     isScanning = true;
+    const scanBtn = document.getElementById('scan-btn');
     scanBtn.disabled = true;
-    scanBtn.innerHTML = '<span class="btn-icon">⏳</span><span>Starting...</span>';
+    scanBtn.classList.add('scanning');
 
     showLoading(true);
 
@@ -139,7 +101,6 @@ async function scanForArbitrage() {
         }
 
         const jobId = startData.job_id;
-        scanBtn.innerHTML = '<span class="btn-icon">🔄</span><span>Scanning...</span>';
 
         // 2. Poll for results
         const pollInterval = 1000; // 1 second
@@ -174,7 +135,7 @@ async function scanForArbitrage() {
                 // Cleanup
                 isScanning = false;
                 scanBtn.disabled = false;
-                scanBtn.innerHTML = '<span class="btn-icon">🔍</span><span>Scan Now</span>';
+                scanBtn.classList.remove('scanning');
                 showLoading(false);
             } else if (statusData.status === 'error') {
                 throw new Error(statusData.error || 'Scan failed');
@@ -194,7 +155,7 @@ async function scanForArbitrage() {
         
         isScanning = false;
         scanBtn.disabled = false;
-        scanBtn.innerHTML = '<span class="btn-icon">🔍</span><span>Scan Now</span>';
+        scanBtn.classList.remove('scanning');
         showLoading(false);
     }
 }
@@ -211,77 +172,35 @@ function renderOpportunities() {
     if (opportunities.length === 0) {
         opportunitiesBody.innerHTML = '';
         emptyState.style.display = 'flex';
-        document.querySelector('.opportunities-table').style.display = 'none';
         return;
     }
 
     emptyState.style.display = 'none';
-    document.querySelector('.opportunities-table').style.display = 'table';
 
     opportunitiesBody.innerHTML = opportunities.map(opp => {
         const eventTime = new Date(opp.commence_time);
         const now = new Date();
         const hoursUntil = Math.round((eventTime - now) / (1000 * 60 * 60));
-        const timeDisplay = hoursUntil < 1 ? 'Soon' : `${hoursUntil}h`;
+        const timeDisplay = hoursUntil < 1 ? 'Soon' : `${hoursUntil}h ago`;
 
-        // Build bets HTML
-        const betsHtml = Object.entries(opp.stakes).map(([outcome, data]) => {
-            const bookInfo = config.bookmakers?.[data.book_key] || {};
-            const bookUrl = bookInfo.url || '#';
-            const bookColor = bookInfo.color || '#666';
-
-            return `
-                <div class="bet-item" style="border-left-color: ${bookColor}">
-                    <div class="bet-header">
-                        <span class="bet-outcome">${outcome}</span>
-                        <span class="bet-odds">${data.odds}</span>
-                    </div>
-                    <div class="bet-details">
-                        <span class="bet-stake">Stake: €${data.stake}</span>
-                        <a href="${bookUrl}" target="_blank" class="bet-book" title="Open ${data.book}">
-                            <span class="book-dot" style="background: ${bookColor}"></span>
-                            ${data.book}
-                        </a>
-                    </div>
-                </div>
-            `;
-        }).join('');
-
-        const roiClass = opp.roi >= 2 ? 'high' : '';
-        const marketLabel = opp.market === 'h2h' ? 'Moneyline' :
-            opp.market === 'spreads' ? 'Spread' : 'Total';
-        const marketExtra = opp.line ? ` (${opp.line})` : '';
-
-        // Store opportunity data for placing bets
-        const oppIndex = opportunities.indexOf(opp);
+        const bookmakers = Object.values(opp.stakes).map(stake => stake.book).join(' • ');
 
         return `
-            <tr>
-                <td>
-                    <div class="event-cell">
-                        <span class="event-teams">${opp.home_team} vs ${opp.away_team}</span>
-                        <span class="event-league">${opp.sport_title}</span>
+            <div class="bg-white p-5 rounded-2xl border border-slate-50 card-shadow flex items-center justify-between group hover:border-growth transition-all cursor-pointer">
+                <div class="flex items-center gap-4">
+                    <div class="size-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-900">
+                        <span class="material-symbols-outlined">bolt</span>
                     </div>
-                </td>
-                <td>
-                    <span class="sport-badge">${getSportEmoji(opp.sport)} ${opp.sport_title}</span>
-                </td>
-                <td>
-                    <div class="time-cell">
-                        <span class="time-date">${eventTime.toLocaleDateString()}</span>
-                        <span class="time-relative">${timeDisplay}</span>
+                    <div>
+                        <h3 class="font-bold text-slate-900">${opp.home_team} vs ${opp.away_team}</h3>
+                        <p class="text-xs text-slate-400 font-medium">${bookmakers}</p>
                     </div>
-                </td>
-                <td>${marketLabel}${marketExtra}</td>
-                <td><span class="roi-badge ${roiClass}">${opp.roi}%</span></td>
-                <td class="profit-cell">€${opp.profit}</td>
-                <td>
-                    <div class="bets-cell">${betsHtml}</div>
-                    <button class="place-bet-btn" onclick="placeVirtualBet(${oppIndex})" style="margin-top: 0.5rem; width: 100%; padding: 0.5rem; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 6px; color: #000; font-weight: 600; cursor: pointer;">
-                        🎮 Place Virtual Bet
-                    </button>
-                </td>
-            </tr>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-growth">+€${opp.profit.toFixed(2)}</p>
+                    <p class="text-[10px] text-slate-400 font-medium uppercase">${timeDisplay}</p>
+                </div>
+            </div>
         `;
     }).join('');
 }
@@ -328,30 +247,15 @@ function showLoading(show) {
     if (show) {
         loadingState.style.display = 'flex';
         emptyState.style.display = 'none';
-        document.querySelector('.opportunities-table').style.display = 'none';
+        opportunitiesBody.style.display = 'none';
     } else {
         loadingState.style.display = 'none';
-    }
-}
-
-function toggleAutoRefresh() {
-    if (autoRefreshCheckbox.checked) {
-        autoRefreshInterval = setInterval(scanForArbitrage, 60000);
-        showToast('Auto-refresh enabled (60s)', 'success');
-    } else {
-        clearInterval(autoRefreshInterval);
-        autoRefreshInterval = null;
-        showToast('Auto-refresh disabled', 'warning');
+        opportunitiesBody.style.display = 'block';
     }
 }
 
 function resetFilters() {
-    // Reset all checkboxes to checked
-    document.querySelectorAll('.filter-group .checkbox input').forEach(el => {
-        el.checked = true;
-    });
-
-    // Reset selects
+    // Reset inputs to their default values
     document.getElementById('filter-roi').value = '0.5';
     document.getElementById('filter-timeframe').value = '24';
     document.getElementById('filter-investment').value = '500';

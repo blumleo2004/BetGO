@@ -1,0 +1,11 @@
+:root {
+    --primary-navy: #1A2130;
+    --soft-white: #F8FAFC;
+}
+body {
+    background-color: var(--soft-white);
+    color: #334155;
+}
+.card-shadow {
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.04);
+}

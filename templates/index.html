@@ -2,186 +2,224 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BETGO - Arbitrage Scanner</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Modern Arbitrage Bot Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1A2130", // Deep navy for primary buttons
+                        "growth": "#10B981", // Soft green for growth/profit
+                        "bg-main": "#F8FAFC", // Soft off-white
+                        "accent-green": "#E9F9F1",
+                    },
+                    fontFamily: {
+                        "sans": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "2xl": "1.5rem",
+                        "3xl": "2rem",
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                    }
+                },
+            },
+        }
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/new_style.css') }}">
 </head>
 
-<body>
-    <!-- Header -->
-    <header class="header">
-        <div class="header-left">
-            <div class="logo">
-                <span class="logo-icon">💰</span>
-                <span class="logo-text">BETGO</span>
+<body class="min-h-screen">
+    <div class="max-w-[1200px] mx-auto px-6 py-10 flex flex-col gap-8">
+        <header class="flex justify-between items-center">
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Welcome Back</p>
+                <h1 class="text-3xl font-extrabold text-slate-900">Leandro</h1>
             </div>
-            <span class="tagline">Arbitrage Scanner</span>
-            <a href="/simulation"
-                style="margin-left: 1rem; padding: 0.5rem 1rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: #000; text-decoration: none; border-radius: 6px; font-size: 0.875rem; font-weight: 600;">🎮
-                Simulation</a>
-        </div>
-        <div class="header-right">
-            <div class="api-credits">
-                <span class="credits-label">API Credits</span>
-                <div class="credits-display">
-                    <span id="credits-remaining">--</span>
-                    <span class="credits-divider">/</span>
-                    <span id="credits-total">--</span>
+            <div class="flex items-center gap-4">
+                <div class="api-credits">
+                    <span class="credits-label">API Credits</span>
+                    <div class="credits-display">
+                        <span id="credits-remaining">--</span>
+                        <span class="credits-divider">/</span>
+                        <span id="credits-total">--</span>
+                    </div>
+                </div>
+                <button
+                    class="size-12 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary transition-colors shadow-sm">
+                    <span class="material-symbols-outlined">notifications</span>
+                </button>
+                <div class="size-12 rounded-full bg-center bg-cover border-2 border-white shadow-sm"
+                    style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAfNElZ1FvFKOHo4z6CFF6UvJT1ZRLSWjI3wK0W-cjaO9qhZE4fgI1v1rMEqqF3JSOP3MIcOnS7zYr41nxrZYRnxdB2eTZ6Gskp0SOp_XvYYfkw7fLQY3bpKhWn4UQu1FxhEyU2TnW9t65V8kXIGLSNpZRF_RjOAjP0gc2xv2sn5ekDIV6b6Eh3gYaUF3j5kGfjKHn-E6HmMhYJfoEslOmKml8pBBkEANNVGfo1-TF6CrTST7fsqVEi8ee2ABywx5YecMzAVSj1-xxe");'>
                 </div>
             </div>
-            <button id="scan-btn" class="btn-primary">
-                <span class="btn-icon">🔍</span>
-                <span>Scan Now</span>
-            </button>
-        </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="main-content">
-        <!-- Filter Panel -->
-        <aside class="filter-panel">
-            <div class="filter-header">
-                <h3>Filters</h3>
-                <button id="reset-filters" class="btn-text">Reset</button>
-            </div>
-
-            <!-- Investment -->
-            <div class="filter-group">
-                <label>Investment (€)</label>
-                <input type="number" id="filter-investment" value="500" min="10" step="10">
-            </div>
-
-            <!-- Min ROI -->
-            <div class="filter-group">
-                <label>Minimum ROI (%)</label>
-                <select id="filter-roi">
-                    <option value="0">Any</option>
-                    <option value="0.5" selected>0.5%+</option>
-                    <option value="1">1%+</option>
-                    <option value="2">2%+</option>
-                    <option value="3">3%+</option>
-                    <option value="5">5%+</option>
-                </select>
-            </div>
-
-            <!-- Timeframe -->
-            <div class="filter-group">
-                <label>Timeframe</label>
-                <select id="filter-timeframe">
-                    <option value="">All upcoming</option>
-                    <option value="1">Next 1 hour</option>
-                    <option value="3">Next 3 hours</option>
-                    <option value="6">Next 6 hours</option>
-                    <option value="12">Next 12 hours</option>
-                    <option value="24" selected>Next 24 hours</option>
-                    <option value="48">Next 48 hours</option>
-                    <option value="168">Next 7 days</option>
-                </select>
-            </div>
-
-            <!-- Markets -->
-            <div class="filter-group">
-                <label>Markets</label>
-                <div class="checkbox-group">
-                    <label class="checkbox">
-                        <input type="checkbox" value="h2h" checked>
-                        <span>Moneyline (1X2)</span>
-                    </label>
-                    <label class="checkbox">
-                        <input type="checkbox" value="spreads" checked>
-                        <span>Spreads</span>
-                    </label>
-                    <label class="checkbox">
-                        <input type="checkbox" value="totals" checked>
-                        <span>Over/Under</span>
-                    </label>
+        </header>
+        <section class="bg-white rounded-3xl p-10 border border-slate-50 card-shadow relative overflow-hidden">
+            <div class="flex justify-between items-start relative z-10">
+                <div class="space-y-6">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Total
+                                Balance</span>
+                            <span class="material-symbols-outlined text-growth text-sm">verified_user</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Secured</span>
+                        </div>
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-6xl font-extrabold tracking-tight text-slate-900"
+                                id="total-profit">€0</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2 px-4 py-2 bg-accent-green rounded-full">
+                            <span class="material-symbols-outlined text-growth text-sm font-bold">trending_up</span>
+                            <span class="text-sm font-bold text-growth" id="best-roi">0%</span>
+                        </div>
+                        <span class="text-sm font-semibold text-slate-400" id="last-scan">Never</span>
+                    </div>
                 </div>
-            </div>
-
-            <!-- Sports -->
-            <div class="filter-group">
-                <label>Sports</label>
-                <div class="checkbox-group sports-list" id="sports-filter">
-                    <!-- Dynamically populated -->
-                </div>
-            </div>
-
-            <!-- Bookmakers -->
-            <div class="filter-group">
-                <label>Bookmakers</label>
-                <div class="checkbox-group bookmakers-list" id="bookmakers-filter">
-                    <!-- Dynamically populated -->
-                </div>
-            </div>
-
-            <!-- Auto Refresh -->
-            <div class="filter-group">
-                <label class="checkbox auto-refresh">
-                    <input type="checkbox" id="auto-refresh">
-                    <span>Auto-refresh (60s)</span>
-                </label>
-            </div>
-        </aside>
-
-        <!-- Results Area -->
-        <section class="results-area">
-            <!-- Stats Bar -->
-            <div class="stats-bar">
                 <div class="stat">
                     <span class="stat-value" id="total-opportunities">0</span>
                     <span class="stat-label">Opportunities</span>
                 </div>
-                <div class="stat">
-                    <span class="stat-value" id="best-roi">0%</span>
-                    <span class="stat-label">Best ROI</span>
+            </div>
+            <div class="absolute right-0 bottom-0 opacity-5 pointer-events-none">
+                <svg height="200" viewBox="0 0 400 200" width="400">
+                    <path class="text-primary" d="M0,150 Q100,50 200,150 T400,100" fill="none" stroke="currentColor"
+                        stroke-width="20"></path>
+                </svg>
+            </div>
+        </section>
+        <section class="bg-white rounded-3xl p-6 border border-slate-50 card-shadow flex justify-around items-center">
+            <button class="flex flex-col items-center gap-3 group" id="scan-btn">
+                <div
+                    class="size-14 rounded-2xl bg-primary flex items-center justify-center text-white transition-transform group-hover:scale-105">
+                    <span class="material-symbols-outlined text-2xl">smart_toy</span>
                 </div>
-                <div class="stat">
-                    <span class="stat-value" id="total-profit">€0</span>
-                    <span class="stat-label">Potential Profit</span>
+                <span class="text-sm font-bold text-slate-600">Start Bot</span>
+            </button>
+            <div class="w-px h-12 bg-slate-100"></div>
+            <button class="flex flex-col items-center gap-3 group">
+                <div
+                    class="size-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 transition-transform group-hover:scale-105">
+                    <span class="material-symbols-outlined text-2xl rotate-45">south_west</span>
                 </div>
-                <div class="stat">
-                    <span class="stat-value" id="last-scan">Never</span>
-                    <span class="stat-label">Last Scan</span>
+                <span class="text-sm font-bold text-slate-600">Deposit</span>
+            </button>
+            <div class="w-px h-12 bg-slate-100"></div>
+            <button class="flex flex-col items-center gap-3 group">
+                <div
+                    class="size-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 transition-transform group-hover:scale-105">
+                    <span class="material-symbols-outlined text-2xl -rotate-45">north_east</span>
+                </div>
+                <span class="text-sm font-bold text-slate-600">Withdraw</span>
+            </button>
+        </section>
+        <aside class="lg:col-span-1 space-y-4">
+            <div class="bg-white p-6 rounded-3xl border border-slate-50 card-shadow">
+                <div class="filter-header flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-extrabold text-slate-900">Filters</h3>
+                    <button id="reset-filters" class="text-sm font-bold text-slate-400 hover:underline">Reset</button>
+                </div>
+
+                <div class="filter-group mb-4">
+                    <label class="text-sm font-bold text-slate-600">Investment (€)</label>
+                    <input type="number" id="filter-investment" value="500" min="10" step="10"
+                        class="w-full mt-2 p-2 border border-slate-200 rounded-lg">
+                </div>
+
+                <div class="filter-group mb-4">
+                    <label class="text-sm font-bold text-slate-600">Minimum ROI (%)</label>
+                    <select id="filter-roi" class="w-full mt-2 p-2 border border-slate-200 rounded-lg">
+                        <option value="0">Any</option>
+                        <option value="0.5" selected>0.5%+</option>
+                        <option value="1">1%+</option>
+                        <option value="2">2%+</option>
+                        <option value="3">3%+</option>
+                        <option value="5">5%+</option>
+                    </select>
                 </div>
             </div>
-
-            <!-- Opportunities Table -->
-            <div class="table-container">
-                <table class="opportunities-table">
-                    <thead>
-                        <tr>
-                            <th>Event</th>
-                            <th>Sport</th>
-                            <th>Time</th>
-                            <th>Market</th>
-                            <th>ROI</th>
-                            <th>Profit</th>
-                            <th>Bets</th>
-                        </tr>
-                    </thead>
-                    <tbody id="opportunities-body">
-                        <!-- Dynamically populated -->
-                    </tbody>
-                </table>
-
-                <!-- Empty State -->
-                <div class="empty-state" id="empty-state">
+        </aside>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <section class="space-y-4">
+                <div class="flex justify-between items-center px-2">
+                    <h2 class="text-xl font-extrabold text-slate-900">Live Activity</h2>
+                    <a class="text-sm font-bold text-growth hover:underline" href="#">See All</a>
+                </div>
+                <div class="space-y-4" id="opportunities-body">
+                    <!-- Dynamically populated -->
+                </div>
+                <div class="empty-state" id="empty-state" style="display: none;">
                     <div class="empty-icon">🎯</div>
                     <h3>No arbitrage opportunities found</h3>
                     <p>Try adjusting your filters or check back later</p>
                 </div>
 
-                <!-- Loading State -->
                 <div class="loading-state" id="loading-state" style="display: none;">
                     <div class="spinner"></div>
                     <p>Scanning markets...</p>
                 </div>
-            </div>
-        </section>
-    </main>
+            </section>
+            <section class="space-y-4">
+                <div class="flex justify-between items-center px-2">
+                    <h2 class="text-xl font-extrabold text-slate-900">Active Pairs</h2>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div
+                        class="bg-white p-6 rounded-3xl border border-slate-50 card-shadow flex flex-col gap-8 relative overflow-hidden group">
+                        <div class="flex justify-between items-start">
+                            <div
+                                class="size-12 rounded-full bg-slate-50 flex items-center justify-center font-bold text-slate-700">
+                                €</div>
+                            <span
+                                class="px-2 py-1 bg-accent-green text-growth text-[10px] font-black rounded-lg">+1.2%</span>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-tighter">EUR / USD</p>
+                            <h4 class="text-2xl font-extrabold text-slate-900 mt-1">0.9745</h4>
+                        </div>
+                        <div class="absolute -right-4 -bottom-4 size-16 bg-slate-50 rounded-full opacity-50"></div>
+                    </div>
+                    <div
+                        class="bg-white p-6 rounded-3xl border border-slate-50 card-shadow flex flex-col gap-8 relative overflow-hidden group">
+                        <div class="flex justify-between items-start">
+                            <div
+                                class="size-12 rounded-full bg-slate-50 flex items-center justify-center font-bold text-slate-700">
+                                £</div>
+                            <span class="px-2 py-1 bg-red-50 text-red-500 text-[10px] font-black rounded-lg">-0.4%</span>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-tighter">GBP / USD</p>
+                            <h4 class="text-2xl font-extrabold text-slate-900 mt-1">0.8211</h4>
+                        </div>
+                        <div class="absolute -right-4 -bottom-4 size-16 bg-slate-50 rounded-full opacity-50"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+    <div class="fixed bottom-10 left-1/2 -translate-x-1/2 z-50">
+        <nav class="bg-primary px-8 py-4 rounded-full flex items-center gap-12 shadow-2xl">
+            <button class="text-slate-400 hover:text-white transition-colors">
+                <span class="material-symbols-outlined text-2xl">history</span>
+            </button>
+            <button
+                class="size-12 bg-white rounded-full flex items-center justify-center text-primary shadow-lg transition-transform hover:scale-110">
+                <span class="material-symbols-outlined text-2xl font-bold">home</span>
+            </button>
+            <button class="text-slate-400 hover:text-white transition-colors">
+                <span class="material-symbols-outlined text-2xl">settings</span>
+            </button>
+        </nav>
+    </div>
 
     <!-- Bookmaker Reference Modal -->
     <div class="modal" id="bookmaker-modal" style="display: none;">
@@ -198,6 +236,7 @@
 
     <!-- Toast Notifications -->
     <div class="toast-container" id="toast-container"></div>
+
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>

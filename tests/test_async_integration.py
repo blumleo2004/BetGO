@@ -7,10 +7,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app import app
-def client():
-    app.config['TESTING'] = True
-    with app.test_client() as client:
-        yield client
 
 def test_async_scan_flow(client):
     """Test the full async scan flow: start -> poll -> result"""
