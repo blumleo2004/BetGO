@@ -45,127 +45,55 @@ async function loadConfig() {
     }
 }
 
+
 function populateFilters() {
-    // The new design does not have dynamic filters for sports and bookmakers,
-    // so this function is now empty.
-}
+    // The new design simplified the filters, so we mainly check if elements exist before populating
+    const sportsFilter = document.getElementById('sports-filter');
+    const bookmakersFilter = document.getElementById('bookmakers-filter');
 
-function setupEventListeners() {
-    // Scan button
-    scanBtn.addEventListener('click', scanForArbitrage);
+    if (sportsFilter && config.sports) {
+        sportsFilter.innerHTML = Object.entries(config.sports).map(([key, name]) => `
+            <label class="checkbox">
+                <input type="checkbox" value="${key}" checked>
+                <span>${name}</span>
+            </label>
+        `).join('');
+    }
 
-    // Reset filters
-    resetFiltersBtn.addEventListener('click', resetFilters);
-
-    // Filter changes trigger scan
-    document.querySelectorAll('.filter-group input, .filter-group select').forEach(el => {
-        el.addEventListener('change', () => {
-            if (autoRefreshInterval) {
-                scanForArbitrage();
-            }
-        });
-    });
+    if (bookmakersFilter && config.bookmakers) {
+        bookmakersFilter.innerHTML = Object.entries(config.bookmakers).map(([key, data]) => `
+            <label class="checkbox">
+                <input type="checkbox" value="${key}" checked>
+                <span>${data.name}</span>
+            </label>
+        `).join('');
+    }
 }
 
 function getFilters() {
+    const sportsFilter = document.getElementById('sports-filter');
+    const bookmakersFilter = document.getElementById('bookmakers-filter');
+
+    // Get selected sports if filter exists
+    let sports = '';
+    if (sportsFilter) {
+        sports = Array.from(sportsFilter.querySelectorAll('input:checked')).map(el => el.value).join(',');
+    }
+
+    // Get selected bookmakers if filter exists
+    let bookmakers = '';
+    if (bookmakersFilter) {
+        bookmakers = Array.from(bookmakersFilter.querySelectorAll('input:checked')).map(el => el.value).join(',');
+    }
+
     return {
-        sports: '', // All sports
-        markets: 'h2h,spreads,totals', // All markets
-        bookmakers: '', // All bookmakers
-        min_roi: document.getElementById('filter-roi').value || '0.5',
-        investment: document.getElementById('filter-investment').value || '500',
-        hours: '' // All upcoming
+        sports: sports,
+        markets: 'h2h,spreads,totals',
+        bookmakers: bookmakers,
+        min_roi: document.getElementById('filter-roi')?.value || '0.5',
+        investment: document.getElementById('filter-investment')?.value || '500',
+        hours: document.getElementById('filter-timeframe')?.value || ''
     };
-}
-
-async function scanForArbitrage() {
-    if (isScanning) return;
-
-    isScanning = true;
-    const scanBtn = document.getElementById('scan-btn');
-    scanBtn.disabled = true;
-    scanBtn.classList.add('scanning');
-
-    showLoading(true);
-
-    try {
-        const filters = getFilters();
-        const params = new URLSearchParams(filters);
-
-        // 1. Start the scan job
-        const startResponse = await fetch(`/api/scan/async?${params}`);
-        const startData = await startResponse.json();
-        
-        if (!startData.job_id) {
-            throw new Error('Failed to start scan job');
-        }
-
-        const jobId = startData.job_id;
-
-        // 2. Poll for results
-        const pollInterval = 1000; // 1 second
-        let attempts = 0;
-        const maxAttempts = 60; // 1 minute timeout
-
-        const poll = async () => {
-            if (attempts >= maxAttempts) {
-                throw new Error('Scan timed out');
-            }
-
-            const statusResponse = await fetch(`/api/scan/status/${jobId}`);
-            const statusData = await statusResponse.json();
-
-            if (statusData.status === 'done') {
-                // Scan complete
-                const result = statusData.result;
-                opportunities = result.opportunities || [];
-                updateApiCredits(result.api_usage);
-                renderOpportunities();
-                updateStats();
-                
-                lastScan.textContent = new Date().toLocaleTimeString();
-
-                if (opportunities.length > 0) {
-                    showToast(`Found ${opportunities.length} arbitrage opportunities!`, 'success');
-                    playNotificationSound();
-                } else {
-                    showToast('Scan complete. No opportunities found.', 'info');
-                }
-                
-                // Cleanup
-                isScanning = false;
-                scanBtn.disabled = false;
-                scanBtn.classList.remove('scanning');
-                showLoading(false);
-            } else if (statusData.status === 'error') {
-                throw new Error(statusData.error || 'Scan failed');
-            } else {
-                // Still running, poll again
-                attempts++;
-                setTimeout(poll, pollInterval);
-            }
-        };
-
-        // Start polling
-        poll();
-
-    } catch (error) {
-        console.error('Scan failed:', error);
-        showToast('Failed to scan for opportunities: ' + error.message, 'error');
-        
-        isScanning = false;
-        scanBtn.disabled = false;
-        scanBtn.classList.remove('scanning');
-        showLoading(false);
-    }
-}
-
-function updateApiCredits(usage) {
-    if (usage) {
-        creditsRemaining.textContent = usage.remaining !== null ? usage.remaining : '--';
-        // The Odds API typically has 500 requests/month for free tier
-        creditsTotal.textContent = usage.remaining !== null ? (usage.remaining + (usage.used || 0)) : '--';
-    }
 }
 
 function renderOpportunities() {
@@ -177,19 +105,20 @@ function renderOpportunities() {
 
     emptyState.style.display = 'none';
 
-    opportunitiesBody.innerHTML = opportunities.map(opp => {
+    opportunitiesBody.innerHTML = opportunities.map((opp, index) => {
         const eventTime = new Date(opp.commence_time);
         const now = new Date();
         const hoursUntil = Math.round((eventTime - now) / (1000 * 60 * 60));
-        const timeDisplay = hoursUntil < 1 ? 'Soon' : `${hoursUntil}h ago`;
+        const timeDisplay = hoursUntil < 1 ? 'Soon' : `${hoursUntil}h`;
 
-        const bookmakers = Object.values(opp.stakes).map(stake => stake.book).join(' • ');
+        // Get bookmaker names from stakes
+        const bookmakers = Object.values(opp.stakes).map(s => s.book).join(' vs ');
 
         return `
-            <div class="bg-white p-5 rounded-2xl border border-slate-50 card-shadow flex items-center justify-between group hover:border-growth transition-all cursor-pointer">
+            <div class="bg-white p-5 rounded-2xl border border-slate-50 card-shadow flex items-center justify-between group hover:border-growth transition-all cursor-pointer" onclick="placeVirtualBet(${index})">
                 <div class="flex items-center gap-4">
-                    <div class="size-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-900">
-                        <span class="material-symbols-outlined">bolt</span>
+                    <div class="size-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-900 text-2xl">
+                        ${getSportEmoji(opp.sport)}
                     </div>
                     <div>
                         <h3 class="font-bold text-slate-900">${opp.home_team} vs ${opp.away_team}</h3>
@@ -197,7 +126,7 @@ function renderOpportunities() {
                     </div>
                 </div>
                 <div class="text-right">
-                    <p class="font-bold text-growth">+€${opp.profit.toFixed(2)}</p>
+                    <p class="font-bold text-growth">+€${opp.profit.toFixed(2)} (${opp.roi.toFixed(2)}%)</p>
                     <p class="text-[10px] text-slate-400 font-medium uppercase">${timeDisplay}</p>
                 </div>
             </div>
