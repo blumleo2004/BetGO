@@ -8,12 +8,17 @@ from flask_cors import CORS
 from arb_engine import ArbEngine
 import config
 import simulation
+import threading
+import uuid
 
 app = Flask(__name__)
 CORS(app)
 
 # Initialize the arbitrage engine
 engine = ArbEngine()
+
+# Background scan jobs (in-memory job queue)
+scan_jobs = {}
 
 @app.route('/')
 def index():
@@ -88,6 +93,84 @@ def scan_arbitrage():
 def get_usage():
     """Get current API usage"""
     return jsonify(engine.get_api_usage())
+
+# ============ ASYNC SCAN ENDPOINTS ============
+
+def _run_scan_job(job_id: str, params: dict):
+    """Background worker for async scans"""
+    try:
+        opportunities = engine.scan_for_arbitrage(
+            sports=params.get('sports'),
+            markets=params.get('markets', 'h2h,spreads,totals'),
+            bookmakers=params.get('bookmakers'),
+            min_roi=params.get('min_roi', 0.5),
+            investment=params.get('investment', 500),
+            max_hours=params.get('max_hours'),
+            live_only=params.get('live_only', False)
+        )
+        usage = engine.get_api_usage()
+        scan_jobs[job_id] = {
+            'status': 'done',
+            'result': {
+                'opportunities': opportunities,
+                'count': len(opportunities),
+                'api_usage': usage
+            }
+        }
+    except Exception as e:
+        scan_jobs[job_id] = {
+            'status': 'error',
+            'error': str(e)
+        }
+
+@app.route('/api/scan/async')
+def scan_async():
+    """
+    Start an async scan in background thread.
+    Returns job_id to poll for results.
+    Query params: same as /api/scan
+    """
+    # Parse parameters (same as sync scan)
+    sports = request.args.get('sports', '').split(',') if request.args.get('sports') else None
+    markets = request.args.get('markets', 'h2h,spreads,totals')
+    bookmakers = request.args.get('bookmakers', '').split(',') if request.args.get('bookmakers') else None
+    min_roi = float(request.args.get('min_roi', 0.5))
+    investment = float(request.args.get('investment', 500))
+    max_hours = int(request.args.get('hours')) if request.args.get('hours') else None
+    live_only = request.args.get('live', '0') == '1'
+    
+    # Clean up empty strings
+    if sports:
+        sports = [s for s in sports if s]
+    if bookmakers:
+        bookmakers = [b for b in bookmakers if b]
+    
+    # Create job
+    job_id = str(uuid.uuid4())
+    scan_jobs[job_id] = {'status': 'running', 'result': None}
+    
+    params = {
+        'sports': sports if sports else None,
+        'markets': markets,
+        'bookmakers': bookmakers if bookmakers else None,
+        'min_roi': min_roi,
+        'investment': investment,
+        'max_hours': max_hours,
+        'live_only': live_only
+    }
+    
+    thread = threading.Thread(target=_run_scan_job, args=(job_id, params))
+    thread.start()
+    
+    return jsonify({'job_id': job_id, 'status': 'running'})
+
+@app.route('/api/scan/status/<job_id>')
+def scan_status(job_id):
+    """Get status of an async scan job"""
+    job = scan_jobs.get(job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+    return jsonify(job)
 
 @app.route('/api/config')
 def get_config():

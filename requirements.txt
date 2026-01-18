@@ -1,3 +1,9 @@
+# Core dependencies
 flask>=2.0.0
 flask-cors>=3.0.0
 requests>=2.25.0
+python-dotenv>=1.0.0
+
+# Dev tools
+pytest>=7.0.0
+black>=23.0.0

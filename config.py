@@ -1,7 +1,39 @@
 # BETGO Configuration
 # Austria-accessible bookmakers and API settings
 
-API_KEY = 'd000b5050c5535d656c4531a37a1245f'
+import os
+import json
+from pathlib import Path
+
+def _load_api_key():
+    """Load API key from environment variable or api_keys.json"""
+    # First try environment variable
+    env_key = os.environ.get('BETGO_API_KEY')
+    if env_key:
+        return env_key
+    
+    # Then try api_keys.json
+    keys_path = Path(__file__).parent / 'api_keys.json'
+    if keys_path.exists():
+        try:
+            with open(keys_path, 'r') as f:
+                data = json.load(f)
+                # Support multiple formats
+                if 'the_odds_api' in data:
+                    keys = data['the_odds_api'].get('keys', [])
+                    if keys:
+                        return keys[0].get('key') if isinstance(keys[0], dict) else keys[0]
+                elif 'keys' in data:
+                    keys = data['keys']
+                    if keys:
+                        return keys[0].get('key') if isinstance(keys[0], dict) else keys[0]
+        except (json.JSONDecodeError, KeyError):
+            pass
+    
+    # Return None if no key found - will need to be configured
+    return None
+
+API_KEY = _load_api_key()
 
 # Default settings
 DEFAULT_INVESTMENT = 500.00

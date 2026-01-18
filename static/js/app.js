@@ -122,7 +122,7 @@ async function scanForArbitrage() {
 
     isScanning = true;
     scanBtn.disabled = true;
-    scanBtn.innerHTML = '<span class="btn-icon">⏳</span><span>Scanning...</span>';
+    scanBtn.innerHTML = '<span class="btn-icon">⏳</span><span>Starting...</span>';
 
     showLoading(true);
 
@@ -130,24 +130,68 @@ async function scanForArbitrage() {
         const filters = getFilters();
         const params = new URLSearchParams(filters);
 
-        const response = await fetch(`/api/scan?${params}`);
-        const data = await response.json();
-
-        opportunities = data.opportunities || [];
-        updateApiCredits(data.api_usage);
-        renderOpportunities();
-        updateStats();
-
-        lastScan.textContent = new Date().toLocaleTimeString();
-
-        if (opportunities.length > 0) {
-            showToast(`Found ${opportunities.length} arbitrage opportunities!`, 'success');
-            playNotificationSound();
+        // 1. Start the scan job
+        const startResponse = await fetch(`/api/scan/async?${params}`);
+        const startData = await startResponse.json();
+        
+        if (!startData.job_id) {
+            throw new Error('Failed to start scan job');
         }
+
+        const jobId = startData.job_id;
+        scanBtn.innerHTML = '<span class="btn-icon">🔄</span><span>Scanning...</span>';
+
+        // 2. Poll for results
+        const pollInterval = 1000; // 1 second
+        let attempts = 0;
+        const maxAttempts = 60; // 1 minute timeout
+
+        const poll = async () => {
+            if (attempts >= maxAttempts) {
+                throw new Error('Scan timed out');
+            }
+
+            const statusResponse = await fetch(`/api/scan/status/${jobId}`);
+            const statusData = await statusResponse.json();
+
+            if (statusData.status === 'done') {
+                // Scan complete
+                const result = statusData.result;
+                opportunities = result.opportunities || [];
+                updateApiCredits(result.api_usage);
+                renderOpportunities();
+                updateStats();
+                
+                lastScan.textContent = new Date().toLocaleTimeString();
+
+                if (opportunities.length > 0) {
+                    showToast(`Found ${opportunities.length} arbitrage opportunities!`, 'success');
+                    playNotificationSound();
+                } else {
+                    showToast('Scan complete. No opportunities found.', 'info');
+                }
+                
+                // Cleanup
+                isScanning = false;
+                scanBtn.disabled = false;
+                scanBtn.innerHTML = '<span class="btn-icon">🔍</span><span>Scan Now</span>';
+                showLoading(false);
+            } else if (statusData.status === 'error') {
+                throw new Error(statusData.error || 'Scan failed');
+            } else {
+                // Still running, poll again
+                attempts++;
+                setTimeout(poll, pollInterval);
+            }
+        };
+
+        // Start polling
+        poll();
+
     } catch (error) {
         console.error('Scan failed:', error);
-        showToast('Failed to scan for opportunities', 'error');
-    } finally {
+        showToast('Failed to scan for opportunities: ' + error.message, 'error');
+        
         isScanning = false;
         scanBtn.disabled = false;
         scanBtn.innerHTML = '<span class="btn-icon">🔍</span><span>Scan Now</span>';
