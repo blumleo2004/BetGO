@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>BetGO - Login</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#38e07b",
+                        "primary-dark": "#059669",
+                        "background-light": "#f6f8f7",
+                        "background-dark": "#122017",
+                        "card-light": "#ffffff",
+                        "card-dark": "#1f2937",
+                        "text-light": "#1f2937",
+                        "text-dark": "#f3f4f6",
+                        accent: "#1e293b"
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        display: "Public Sans"
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.25rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        full: "9999px"
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+        }
+    </style>
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#122017">
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-screen transition-colors duration-300 flex overflow-hidden">
+    <!-- Left Panel - Marketing -->
+    <div class="hidden lg:flex lg:w-1/2 relative bg-gray-900">
+        <div class="absolute inset-0 bg-gradient-to-br from-background-dark via-background-dark/80 to-primary/20"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-background-dark/90 via-background-dark/20 to-transparent">
+        </div>
+        <div class="absolute bottom-0 left-0 p-16 z-10 w-full max-w-2xl">
+            <div class="flex items-center gap-2 mb-6">
+                <span
+                    class="bg-primary/20 text-primary border border-primary/20 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider">Arbitrage
+                    Platform</span>
+            </div>
+            <h2 class="text-4xl font-bold font-display text-white mb-4 leading-tight">Maximize your returns with
+                automated betting strategies.</h2>
+            <p class="text-gray-300 text-lg mb-8 leading-relaxed opacity-90">
+                Join the smartest community of sports traders. BetGO provides real-time odds analysis and automated
+                execution across 12+ major bookmakers.
+            </p>
+            <div class="flex items-center gap-4 pt-8 border-t border-white/10">
+                <div class="flex -space-x-3">
+                    <div
+                        class="w-10 h-10 rounded-full border-2 border-background-dark bg-primary/30 flex items-center justify-center">
+                        <span class="material-icons-round text-primary text-sm">person</span>
+                    </div>
+                    <div
+                        class="w-10 h-10 rounded-full border-2 border-background-dark bg-primary/20 flex items-center justify-center">
+                        <span class="material-icons-round text-primary text-sm">person</span>
+                    </div>
+                    <div
+                        class="w-10 h-10 rounded-full border-2 border-background-dark bg-primary/10 flex items-center justify-center">
+                        <span class="material-icons-round text-primary text-sm">person</span>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-white text-sm font-semibold">2,000+ Active Traders</p>
+                    <div class="flex text-yellow-400 text-xs">
+                        <span class="material-icons-round text-sm">star</span>
+                        <span class="material-icons-round text-sm">star</span>
+                        <span class="material-icons-round text-sm">star</span>
+                        <span class="material-icons-round text-sm">star</span>
+                        <span class="material-icons-round text-sm">star</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel - Login Form -->
+    <div
+        class="w-full lg:w-1/2 flex items-center justify-center p-8 bg-background-light dark:bg-background-dark relative overflow-y-auto">
+        <div class="w-full max-w-md space-y-8">
+            <div class="text-center">
+                <h1 class="text-4xl font-bold font-display tracking-tighter text-gray-900 dark:text-white mb-2">BetGO
+                </h1>
+                <h2 class="text-xl font-medium text-gray-600 dark:text-gray-300">Welcome back</h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Please sign in to continue.</p>
+            </div>
+
+            <!-- Google Sign In Button -->
+            <a href="{{ url_for('auth.google_login') }}"
+                class="group relative w-full flex justify-center items-center gap-3 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-card-dark text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+                <svg class="h-5 w-5" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
+                    <g transform="matrix(1, 0, 0, 1, 27.009001, -39.23856)">
+                        <path
+                            d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"
+                            fill="#4285F4"></path>
+                        <path
+                            d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z"
+                            fill="#34A853"></path>
+                        <path
+                            d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.734 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.489 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.989 -25.464 56.619 L -21.484 53.529 Z"
+                            fill="#FBBC05"></path>
+                        <path
+                            d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z"
+                            fill="#EA4335"></path>
+                    </g>
+                </svg>
+                <span class="font-semibold">Sign in with Google</span>
+            </a>
+
+            <div class="relative">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-gray-200 dark:border-gray-700"></div>
+                </div>
+                <div class="relative flex justify-center text-sm">
+                    <span class="px-2 bg-background-light dark:bg-background-dark text-gray-400 font-medium">Or continue
+                        as guest</span>
+                </div>
+            </div>
+
+            <!-- Guest Access Button -->
+            <a href="/"
+                class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-md text-sm font-bold text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all transform hover:scale-[1.01]">
+                View Dashboard (Limited)
+            </a>
+
+            <p class="text-center text-sm text-gray-500 dark:text-gray-400 mt-8">
+                By signing in, you agree to our
+                <a class="font-semibold text-primary hover:text-primary-dark transition-colors" href="#">Terms of
+                    Service</a>
+            </p>
+        </div>
+        <div class="absolute bottom-6 w-full text-center">
+            <span class="text-xs text-gray-400 dark:text-gray-600">© 2024 BetGO. All rights reserved.</span>
+        </div>
+    </div>
+
+    <script>
+        // Check local storage or system preference for dark mode
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    </script>
+</body>
+
+</html>

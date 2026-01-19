@@ -46,6 +46,35 @@ async function loadConfig() {
 }
 
 
+
+function setupEventListeners() {
+    const scanBtn = document.getElementById('scan-btn');
+    if (scanBtn) {
+        scanBtn.addEventListener('click', scanForArbitrage);
+    }
+
+
+    const resetFiltersBtn = document.getElementById('reset-filters');
+    if (resetFiltersBtn) {
+        resetFiltersBtn.addEventListener('click', resetFilters);
+    }
+
+    // Mobile Filter Toggle
+    const toggleFiltersBtn = document.getElementById('toggle-filters');
+    const filtersContent = document.getElementById('filters-content');
+    if (toggleFiltersBtn && filtersContent) {
+        toggleFiltersBtn.addEventListener('click', () => {
+            filtersContent.classList.toggle('hidden');
+        });
+    }
+
+    document.querySelectorAll('.filter-group input, .filter-group select').forEach(el => {
+        el.addEventListener('change', () => {
+            // Auto-refresh logic if needed
+        });
+    });
+}
+
 function populateFilters() {
     // The new design simplified the filters, so we mainly check if elements exist before populating
     const sportsFilter = document.getElementById('sports-filter');
@@ -94,6 +123,96 @@ function getFilters() {
         investment: document.getElementById('filter-investment')?.value || '500',
         hours: document.getElementById('filter-timeframe')?.value || ''
     };
+}
+
+async function scanForArbitrage() {
+    if (isScanning) return;
+
+    isScanning = true;
+    const scanBtn = document.getElementById('scan-btn');
+    const originalBtnContent = scanBtn.innerHTML;
+
+    // Update button visual state
+    scanBtn.disabled = true;
+    scanBtn.innerHTML = `
+        <div class="size-14 rounded-2xl bg-primary flex items-center justify-center text-white">
+            <div class="spinner border-2 border-white border-t-transparent rounded-full w-6 h-6 animate-spin"></div>
+        </div>
+        <span class="text-sm font-bold text-slate-600">Scanning...</span>
+    `;
+
+    showLoading(true);
+
+    try {
+        const filters = getFilters();
+        const params = new URLSearchParams(filters);
+
+        const startResponse = await fetch(`/api/scan/async?${params}`);
+        const startData = await startResponse.json();
+
+        if (!startData.job_id) {
+            throw new Error('Failed to start scan job');
+        }
+
+        const jobId = startData.job_id;
+        const pollInterval = 1000;
+        let attempts = 0;
+        const maxAttempts = 60;
+
+        const poll = async () => {
+            if (attempts >= maxAttempts) {
+                throw new Error('Scan timed out');
+            }
+
+            const statusResponse = await fetch(`/api/scan/status/${jobId}`);
+            const statusData = await statusResponse.json();
+
+            if (statusData.status === 'done') {
+                const result = statusData.result;
+                opportunities = result.opportunities || [];
+                updateApiCredits(result.api_usage);
+                renderOpportunities();
+                updateStats();
+
+                if (lastScan) lastScan.textContent = new Date().toLocaleTimeString();
+
+                if (opportunities.length > 0) {
+                    showToast(`Found ${opportunities.length} arbitrage opportunities!`, 'success');
+                    playNotificationSound();
+                } else {
+                    showToast('Scan complete. No opportunities found.', 'info');
+                }
+
+                isScanning = false;
+                scanBtn.disabled = false;
+                scanBtn.innerHTML = originalBtnContent;
+                showLoading(false);
+            } else if (statusData.status === 'error') {
+                throw new Error(statusData.error || 'Scan failed');
+            } else {
+                attempts++;
+                setTimeout(poll, pollInterval);
+            }
+        };
+
+        poll();
+
+    } catch (error) {
+        console.error('Scan failed:', error);
+        showToast('Failed to scan: ' + error.message, 'error');
+
+        isScanning = false;
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = originalBtnContent;
+        showLoading(false);
+    }
+}
+
+function updateApiCredits(usage) {
+    if (usage && creditsRemaining && creditsTotal) {
+        creditsRemaining.textContent = usage.remaining !== null ? usage.remaining : '--';
+        creditsTotal.textContent = usage.remaining !== null ? (usage.remaining + (usage.used || 0)) : '--';
+    }
 }
 
 function renderOpportunities() {

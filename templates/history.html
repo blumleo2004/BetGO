@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>BetGO - Performance & History</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#10B981",
+                        "background-light": "#F8FAFC",
+                        "background-dark": "#0F172A",
+                        "card-light": "#FFFFFF",
+                        "card-dark": "#1E293B",
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "1.5rem",
+                        'xl': '1rem',
+                        '2xl': '1.5rem',
+                        '3xl': '2rem',
+                    },
+                    boxShadow: {
+                        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+                    }
+                },
+            },
+        };
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+    </style>
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#0F172A">
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-200 font-sans min-h-screen transition-colors duration-300 pb-32">
+
+    <!-- Header -->
+    <header class="max-w-5xl mx-auto px-6 pt-8 pb-6 flex items-start justify-between">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight dark:text-white">BetGO</h1>
+            <p class="text-primary text-sm font-medium mt-0.5">Performance Dashboard</p>
+        </div>
+        <div class="text-right">
+            <p class="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">API Credits</p>
+            <p class="font-mono text-sm font-medium dark:text-slate-300"><span id="credits-remaining">--</span> / <span
+                    id="credits-total">--</span></p>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-6 space-y-6">
+        <!-- Profit Overview Card -->
+        <section
+            class="bg-card-light dark:bg-card-dark rounded-3xl shadow-soft p-6 md:p-8 transition-colors duration-300 relative overflow-hidden">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 z-10 relative">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white">Profit Overview</h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">Net earnings over the last 7 days</p>
+                </div>
+                <div class="mt-4 md:mt-0 flex items-center gap-3">
+                    <div class="bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1 rounded-full flex items-center gap-1">
+                        <span class="material-icons-round text-primary text-sm">trending_up</span>
+                        <span class="text-primary text-sm font-bold" id="profit-change">+0%</span>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-slate-400 dark:text-slate-500 uppercase">Total Profit</p>
+                        <p class="text-xl font-bold text-slate-900 dark:text-white" id="total-profit">€0.00</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profit Chart -->
+            <div class="relative w-full h-64 mt-4">
+                <svg class="w-full h-full overflow-visible" viewBox="0 0 1000 300" id="profit-chart">
+                    <defs>
+                        <linearGradient id="gradientFill" x1="0" x2="0" y1="0" y2="1">
+                            <stop offset="0%" stop-color="#10B981" stop-opacity="0.2"></stop>
+                            <stop offset="100%" stop-color="#10B981" stop-opacity="0"></stop>
+                        </linearGradient>
+                    </defs>
+                    <line class="text-slate-900 dark:text-slate-100" stroke="currentColor" stroke-opacity="0.05"
+                        stroke-width="1" x1="0" x2="1000" y1="250" y2="250"></line>
+                    <line class="text-slate-900 dark:text-slate-100" stroke="currentColor" stroke-opacity="0.05"
+                        stroke-width="1" x1="0" x2="1000" y1="150" y2="150"></line>
+                    <line class="text-slate-900 dark:text-slate-100" stroke="currentColor" stroke-opacity="0.05"
+                        stroke-width="1" x1="0" x2="1000" y1="50" y2="50"></line>
+                    <path
+                        d="M0,250 C100,240 150,200 200,180 C250,160 300,190 400,150 C500,110 550,130 650,80 C750,30 850,60 1000,20 V300 H0 Z"
+                        fill="url(#gradientFill)"></path>
+                    <path
+                        d="M0,250 C100,240 150,200 200,180 C250,160 300,190 400,150 C500,110 550,130 650,80 C750,30 850,60 1000,20"
+                        fill="none" stroke="#10B981" stroke-linecap="round" stroke-width="4"></path>
+                    <circle class="fill-white dark:fill-slate-800 stroke-primary stroke-2" cx="200" cy="180" r="6">
+                    </circle>
+                    <circle class="fill-white dark:fill-slate-800 stroke-primary stroke-2" cx="400" cy="150" r="6">
+                    </circle>
+                    <circle class="fill-white dark:fill-slate-800 stroke-primary stroke-2" cx="650" cy="80" r="6">
+                    </circle>
+                    <circle class="fill-white dark:fill-slate-800 stroke-primary stroke-2" cx="1000" cy="20" r="6">
+                    </circle>
+                </svg>
+                <div
+                    class="absolute bottom-0 w-full flex justify-between text-xs text-slate-400 dark:text-slate-500 font-medium translate-y-6">
+                    <span>Mon</span>
+                    <span>Tue</span>
+                    <span>Wed</span>
+                    <span>Thu</span>
+                    <span>Fri</span>
+                    <span>Sat</span>
+                    <span>Sun</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Recent Activity -->
+        <section
+            class="bg-card-light dark:bg-card-dark rounded-3xl shadow-soft p-6 md:p-8 transition-colors duration-300">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-bold text-slate-900 dark:text-white">Recent Activity</h2>
+                <button
+                    class="text-sm text-primary hover:text-emerald-600 dark:hover:text-emerald-400 font-medium transition-colors">See
+                    All</button>
+            </div>
+
+            <div class="space-y-4" id="activity-list">
+                <!-- Activity items will be dynamically populated -->
+                <div class="text-center py-8 text-slate-500 dark:text-slate-400" id="no-activity">
+                    <span class="material-icons-round text-4xl mb-2 opacity-50">history</span>
+                    <p>No recent activity</p>
+                    <p class="text-sm">Start scanning to see your betting history here</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Floating Bottom Navigation -->
+    <div class="fixed bottom-8 left-0 right-0 flex justify-center z-50 px-4">
+        <nav
+            class="bg-slate-900 dark:bg-slate-800 text-slate-400 flex items-center gap-2 px-3 py-3 rounded-full shadow-2xl border border-slate-800 dark:border-slate-700">
+            <a href="/history"
+                class="w-12 h-12 flex items-center justify-center rounded-full bg-white text-slate-900 shadow-md transform -translate-y-2"
+                title="History">
+                <span class="material-icons-round" style="font-size: 20px;">history</span>
+            </a>
+            <a href="/"
+                class="w-12 h-12 flex items-center justify-center rounded-full hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
+                title="Home">
+                <span class="material-icons-round" style="font-size: 24px;">home</span>
+            </a>
+            <a href="/settings"
+                class="w-12 h-12 flex items-center justify-center rounded-full hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
+                title="Settings">
+                <span class="material-icons-round" style="font-size: 20px;">settings</span>
+            </a>
+        </nav>
+    </div>
+
+    <script>
+        // Dark mode initialization
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
+        // Load bet history from API
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/simulation/history');
+                const data = await response.json();
+
+                if (data.bets && data.bets.length > 0) {
+                    document.getElementById('no-activity').style.display = 'none';
+                    const activityList = document.getElementById('activity-list');
+
+                    data.bets.slice(0, 10).forEach(bet => {
+                        const profit = bet.actual_profit || 0;
+                        const profitClass = profit >= 0 ? 'text-primary' : 'text-red-500';
+                        const profitSign = profit >= 0 ? '+' : '';
+
+                        const item = document.createElement('div');
+                        item.className = 'group flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-700/50 border border-transparent hover:border-slate-100 dark:hover:border-slate-700 transition-all duration-200';
+                        item.innerHTML = `
+                            <div class="flex items-center gap-4 mb-4 sm:mb-0">
+                                <div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                                    <span class="material-icons-round text-primary text-sm">sports</span>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-bold text-slate-900 dark:text-white">${bet.event || 'Arbitrage Bet'}</h3>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">${bet.timestamp || 'Recently'}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto">
+                                <div class="text-right">
+                                    <p class="text-xs text-slate-400 dark:text-slate-500">Invested</p>
+                                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">€${(bet.total_stake || 0).toFixed(2)}</p>
+                                </div>
+                                <div class="text-right min-w-[80px]">
+                                    <p class="text-xs text-slate-400 dark:text-slate-500">Profit</p>
+                                    <p class="text-base font-bold ${profitClass}">${profitSign}€${Math.abs(profit).toFixed(2)}</p>
+                                </div>
+                            </div>
+                        `;
+                        activityList.appendChild(item);
+                    });
+                }
+
+                // Update stats
+                const statsResp = await fetch('/api/simulation/stats');
+                const stats = await statsResp.json();
+                if (stats.stats) {
+                    document.getElementById('total-profit').textContent = `€${(stats.stats.total_profit || 0).toFixed(2)}`;
+                }
+            } catch (e) {
+                console.log('Could not load history:', e);
+            }
+        }
+
+        // Load API credits
+        async function loadCredits() {
+            try {
+                const response = await fetch('/api/usage');
+                const data = await response.json();
+                document.getElementById('credits-remaining').textContent = data.requests_remaining || '--';
+                document.getElementById('credits-total').textContent = '1000';
+            } catch (e) {
+                console.log('Could not load credits');
+            }
+        }
+
+        loadHistory();
+        loadCredits();
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>BetGO - Settings & Configuration</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#38e07b",
+                        "primary-dark": "#059669",
+                        "background-light": "#f6f8f7",
+                        "background-dark": "#122017",
+                        "card-light": "#ffffff",
+                        "card-dark": "#1f2937",
+                        "text-light": "#1f2937",
+                        "text-dark": "#f3f4f6",
+                        accent: "#1e293b"
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.25rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        full: "9999px"
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #38e07b;
+            cursor: pointer;
+            margin-top: -8px;
+            box-shadow: 0 0 0 4px rgba(56, 224, 123, 0.2);
+            transition: transform 0.1s ease;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #e5e7eb;
+            border-radius: 2px;
+        }
+
+        .dark input[type=range]::-webkit-slider-runnable-track {
+            background: #374151;
+        }
+    </style>
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#122017">
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-screen transition-colors duration-300 pb-32">
+
+    <!-- Header -->
+    <header class="w-full max-w-6xl mx-auto p-6 flex justify-between items-start">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Settings & Configuration</h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage bot parameters and preferences</p>
+        </div>
+        <div class="text-right">
+            <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider font-semibold">API
+                Status</span>
+            <div class="flex items-center justify-end gap-2 mt-1">
+                <span class="relative flex h-3 w-3">
+                    <span
+                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                </span>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Operational</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="w-full max-w-6xl mx-auto px-6 space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <!-- Sidebar Navigation -->
+            <aside class="md:col-span-1">
+                <nav class="space-y-1">
+                    <a class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+                        href="#general" id="nav-general">
+                        <span class="material-icons-round text-lg">tune</span>
+                        General
+                    </a>
+                    <a class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+                        href="#api" id="nav-api">
+                        <span class="material-icons-round text-lg">key</span>
+                        API Keys
+                    </a>
+                    <a class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg bg-primary/10 text-primary dark:text-primary transition-colors"
+                        href="#bot" id="nav-bot">
+                        <span class="material-icons-round text-lg">smart_toy</span>
+                        Bot Strategy
+                    </a>
+                    <a class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors"
+                        href="#notifications" id="nav-notifications">
+                        <span class="material-icons-round text-lg">notifications</span>
+                        Notifications
+                    </a>
+                </nav>
+
+                {% if current_user.is_authenticated %}
+                <div
+                    class="mt-8 bg-card-light dark:bg-card-dark p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="p-2 bg-primary/10 rounded-lg text-primary">
+                            <span class="material-icons-round text-lg">person</span>
+                        </div>
+                        <span
+                            class="text-xs font-semibold uppercase text-gray-400 dark:text-gray-500 tracking-wider">Account</span>
+                    </div>
+                    <p class="text-sm font-bold text-gray-900 dark:text-white">{{ current_user.name }}</p>
+                    <p class="text-xs text-gray-500 mt-1">{{ current_user.email }}</p>
+                    <a href="{{ url_for('auth.logout') }}"
+                        class="mt-3 block text-center text-sm text-red-500 hover:text-red-600 font-medium">Sign Out</a>
+                </div>
+                {% endif %}
+            </aside>
+
+            <!-- Main Settings Content -->
+            <div class="md:col-span-3 space-y-6">
+                <!-- Bot Strategy Configuration -->
+                <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 md:p-8 shadow-sm border border-transparent dark:border-gray-800"
+                    id="bot-section">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Bot Strategy Configuration</h2>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Fine-tune your arbitrage algorithms
+                                and risk parameters.</p>
+                        </div>
+                        <button class="text-primary hover:text-primary-dark transition-colors" title="Help">
+                            <span class="material-icons-round text-2xl">help_outline</span>
+                        </button>
+                    </div>
+
+                    <div class="space-y-10">
+                        <!-- Investment Amount -->
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <label class="text-sm font-semibold text-gray-700 dark:text-gray-200">Investment Amount
+                                    per Trade</label>
+                                <div class="flex items-center">
+                                    <span class="text-gray-400 mr-1">€</span>
+                                    <input type="number" id="investment-input" value="500" min="10" max="10000"
+                                        step="10"
+                                        class="w-20 text-right p-1 bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-primary focus:ring-0 text-sm font-bold text-gray-900 dark:text-white transition-colors outline-none" />
+                                </div>
+                            </div>
+                            <div class="relative pt-1 px-1">
+                                <input type="range" id="investment-slider" min="10" max="10000" step="10" value="500"
+                                    class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-primary" />
+                                <div class="flex justify-between text-xs text-gray-400 font-medium mt-2">
+                                    <span>€10</span>
+                                    <span>€5000</span>
+                                    <span>€10000+</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Minimum ROI -->
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <label class="text-sm font-semibold text-gray-700 dark:text-gray-200">Minimum ROI
+                                    Filter</label>
+                                <span
+                                    class="text-xs font-medium px-2 py-1 rounded bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                    id="roi-badge">0.5%+</span>
+                            </div>
+                            <select id="roi-select"
+                                class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-card-dark text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent">
+                                <option value="0">Any ROI</option>
+                                <option value="0.5" selected>0.5%+ (Recommended)</option>
+                                <option value="1">1%+</option>
+                                <option value="2">2%+</option>
+                                <option value="3">3%+</option>
+                                <option value="5">5%+ (High Risk)</option>
+                            </select>
+                            <p
+                                class="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-700 flex items-start gap-2">
+                                <span class="material-icons-round text-sm mt-0.5 text-gray-400">info</span>
+                                <span><span class="font-bold">Tip:</span> Higher ROI opportunities are rarer but more
+                                    profitable. Lower thresholds find more opportunities.</span>
+                            </p>
+                        </div>
+
+                        <hr class="border-gray-100 dark:border-gray-700" />
+
+                        <!-- Save Button -->
+                        <div class="flex items-center justify-end gap-3 pt-4">
+                            <button id="reset-btn"
+                                class="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                                Reset to Default
+                            </button>
+                            <button id="save-btn"
+                                class="px-6 py-2.5 rounded-lg text-sm font-bold bg-primary hover:bg-primary-dark text-white shadow-lg shadow-primary/30 transition-all hover:-translate-y-0.5">
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Discord Notifications -->
+                <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 md:p-8 shadow-sm border border-transparent dark:border-gray-800"
+                    id="notifications-section">
+                    <div class="flex items-center justify-between mb-6">
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Discord Notifications</h2>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Get alerted when arbitrage
+                                opportunities are found.</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Discord
+                                Webhook URL</label>
+                            <input type="url" id="discord-webhook" placeholder="https://discord.com/api/webhooks/..."
+                                class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-card-dark text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent" />
+                        </div>
+                        <div class="flex gap-3">
+                            <button id="save-discord-btn"
+                                class="px-6 py-2.5 rounded-lg text-sm font-bold bg-primary hover:bg-primary-dark text-white transition-all">
+                                Save Webhook
+                            </button>
+                            <button id="test-discord-btn"
+                                class="px-6 py-2.5 rounded-lg text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                                Test Notification
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strategy Tip -->
+                <div
+                    class="bg-gradient-to-r from-background-dark to-card-dark rounded-xl p-6 shadow-sm border border-gray-800 relative overflow-hidden text-white">
+                    <div
+                        class="absolute top-0 right-0 w-40 h-40 bg-primary/10 rounded-full blur-3xl pointer-events-none">
+                    </div>
+                    <div class="relative z-10 flex items-start gap-4">
+                        <div class="p-3 bg-white/10 rounded-lg backdrop-blur-sm shadow-inner">
+                            <span class="material-icons-round text-primary">lightbulb</span>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-white">Strategy Tip</h3>
+                            <p class="text-sm text-gray-300 mt-1 leading-relaxed">Start with a lower investment amount
+                                to test the system, then gradually increase as you become comfortable. The auto-scanner
+                                works best when running continuously.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Floating Bottom Navigation -->
+    <div class="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
+        <div
+            class="bg-accent text-white rounded-full px-6 py-3 shadow-2xl flex items-center gap-8 border border-white/10 backdrop-blur-md bg-opacity-90">
+            <a href="/history" class="p-2 hover:bg-white/10 rounded-full transition-colors opacity-70 hover:opacity-100"
+                title="History">
+                <span class="material-icons-round text-xl">history</span>
+            </a>
+            <a href="/" class="p-2 hover:bg-white/10 rounded-full transition-colors opacity-70 hover:opacity-100"
+                title="Home">
+                <span class="material-icons-round text-xl">home</span>
+            </a>
+            <a href="/settings"
+                class="p-3 bg-white text-accent rounded-full shadow-lg hover:scale-110 transition-transform"
+                title="Settings">
+                <span class="material-icons-round text-xl font-bold">settings</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="fixed top-4 right-4 space-y-2 z-50" id="toast-container"></div>
+
+    <script>
+        // Dark mode initialization
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
+        // Toggle theme on API status click (Easter egg)
+        document.querySelector('header div.text-right')?.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        });
+
+        // Investment slider sync
+        const investmentSlider = document.getElementById('investment-slider');
+        const investmentInput = document.getElementById('investment-input');
+
+        investmentSlider.addEventListener('input', (e) => {
+            investmentInput.value = e.target.value;
+            localStorage.setItem('betgo_investment', e.target.value);
+        });
+
+        investmentInput.addEventListener('change', (e) => {
+            investmentSlider.value = e.target.value;
+            localStorage.setItem('betgo_investment', e.target.value);
+        });
+
+        // ROI select
+        const roiSelect = document.getElementById('roi-select');
+        const roiBadge = document.getElementById('roi-badge');
+
+        roiSelect.addEventListener('change', (e) => {
+            roiBadge.textContent = e.target.value === '0' ? 'Any' : e.target.value + '%+';
+            localStorage.setItem('betgo_min_roi', e.target.value);
+        });
+
+        // Load saved settings
+        const savedInvestment = localStorage.getItem('betgo_investment');
+        if (savedInvestment) {
+            investmentSlider.value = savedInvestment;
+            investmentInput.value = savedInvestment;
+        }
+
+        const savedRoi = localStorage.getItem('betgo_min_roi');
+        if (savedRoi) {
+            roiSelect.value = savedRoi;
+            roiBadge.textContent = savedRoi === '0' ? 'Any' : savedRoi + '%+';
+        }
+
+        // Reset button
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            investmentSlider.value = 500;
+            investmentInput.value = 500;
+            roiSelect.value = '0.5';
+            roiBadge.textContent = '0.5%+';
+            localStorage.setItem('betgo_investment', '500');
+            localStorage.setItem('betgo_min_roi', '0.5');
+            showToast('Settings reset to defaults', 'success');
+        });
+
+        // Save button
+        document.getElementById('save-btn').addEventListener('click', () => {
+            localStorage.setItem('betgo_investment', investmentInput.value);
+            localStorage.setItem('betgo_min_roi', roiSelect.value);
+            showToast('Settings saved successfully!', 'success');
+        });
+
+        // Discord webhook
+        async function loadDiscordWebhook() {
+            try {
+                const resp = await fetch('/api/scanner/discord');
+                const data = await resp.json();
+                if (data.webhook_url) {
+                    document.getElementById('discord-webhook').value = data.webhook_url;
+                }
+            } catch (e) {
+                console.log('Could not load Discord webhook');
+            }
+        }
+
+        document.getElementById('save-discord-btn').addEventListener('click', async () => {
+            const webhook = document.getElementById('discord-webhook').value;
+            try {
+                const resp = await fetch('/api/scanner/discord', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ webhook_url: webhook })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    showToast('Discord webhook saved!', 'success');
+                } else {
+                    showToast('Failed to save webhook', 'error');
+                }
+            } catch (e) {
+                showToast('Error saving webhook', 'error');
+            }
+        });
+
+        document.getElementById('test-discord-btn').addEventListener('click', async () => {
+            try {
+                const resp = await fetch('/api/scanner/discord/test', { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    showToast('Test notification sent!', 'success');
+                } else {
+                    showToast('Failed to send test: ' + (data.error || 'Unknown error'), 'error');
+                }
+            } catch (e) {
+                showToast('Error sending test notification', 'error');
+            }
+        });
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-primary' : type === 'error' ? 'bg-red-500' : 'bg-gray-700';
+            toast.className = `${bgClass} text-white px-4 py-3 rounded-lg shadow-lg animate-pulse`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        loadDiscordWebhook();
+    </script>
+</body>
+
+</html>

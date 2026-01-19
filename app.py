@@ -11,11 +11,37 @@ import simulation
 import threading
 import uuid
 
+
+from auth import auth_bp, init_oauth
+from models import db, User
+from flask_login import LoginManager, current_user
+
 app = Flask(__name__)
 CORS(app)
 
+# Initialize Extensions
+app.config.from_object('config') # Load config from config.py
+db.init_app(app)
+init_oauth(app)
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'auth.login'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# Create DB Tables
+with app.app_context():
+    db.create_all()
+
+# Register Blueprints
+app.register_blueprint(auth_bp, url_prefix='/auth')
+
 # Initialize the arbitrage engine
 engine = ArbEngine()
+
 
 # Background scan jobs (in-memory job queue)
 scan_jobs = {}
@@ -29,6 +55,16 @@ def index():
 def simulation_page():
     """Serve the simulation dashboard"""
     return render_template('simulation.html')
+
+@app.route('/settings')
+def settings_page():
+    """Serve the settings page"""
+    return render_template('settings.html')
+
+@app.route('/history')
+def history_page():
+    """Serve the history/performance page"""
+    return render_template('history.html')
 
 @app.route('/api/sports')
 def get_sports():
@@ -358,6 +394,33 @@ def manage_discord_webhook():
 @app.route('/api/discord/test', methods=['POST'])
 def test_discord():
     """Test Discord notification"""
+    import auto_scanner
+    success = auto_scanner.test_discord()
+    return jsonify({'success': success})
+
+# Alias for settings page
+@app.route('/api/scanner/discord', methods=['GET', 'POST'])
+def scanner_discord_settings():
+    """Get or set Discord webhook URL (alias for settings page)"""
+    import auto_scanner
+    
+    if request.method == 'POST':
+        data = request.get_json()
+        url = data.get('webhook_url') or data.get('url')
+        if url:
+            auto_scanner.set_discord_webhook(url)
+            return jsonify({'success': True, 'message': 'Discord webhook configured'})
+        return jsonify({'success': False, 'error': 'No URL provided'})
+    
+    webhook = auto_scanner.scanner.notifier.webhook_url
+    return jsonify({
+        'configured': bool(webhook),
+        'webhook_url': webhook if webhook else None
+    })
+
+@app.route('/api/scanner/discord/test', methods=['POST'])
+def scanner_discord_test():
+    """Test Discord notification (alias)"""
     import auto_scanner
     success = auto_scanner.test_discord()
     return jsonify({'success': success})

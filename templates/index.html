@@ -1,243 +1,271 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="dark" lang="en">
 
 <head>
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>Modern Arbitrage Bot Dashboard</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap"
+    <title>BetGO - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
         rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
-        rel="stylesheet" />
-    <script id="tailwind-config">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <script>
         tailwind.config = {
+            darkMode: "class",
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#1A2130", // Deep navy for primary buttons
-                        "growth": "#10B981", // Soft green for growth/profit
-                        "bg-main": "#F8FAFC", // Soft off-white
-                        "accent-green": "#E9F9F1",
+                        primary: "#38e07b",
+                        "primary-dark": "#059669",
+                        "background-light": "#f6f8f7",
+                        "background-dark": "#122017",
+                        "card-light": "#ffffff",
+                        "card-dark": "#1f2937",
+                        "text-light": "#1f2937",
+                        "text-dark": "#f3f4f6",
+                        accent: "#1e293b"
                     },
                     fontFamily: {
-                        "sans": ["Plus Jakarta Sans", "sans-serif"]
+                        sans: ["Inter", "sans-serif"]
                     },
                     borderRadius: {
-                        "2xl": "1.5rem",
-                        "3xl": "2rem",
+                        DEFAULT: "0.25rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        "2xl": "1rem",
+                        "3xl": "1.5rem",
+                        full: "9999px"
                     },
                     boxShadow: {
                         'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
                     }
-                },
-            },
-        }
+                }
+            }
+        };
     </script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/new_style.css') }}">
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+        }
+    </style>
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#122017">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 
-<body class="min-h-screen">
-    <div class="max-w-[1200px] mx-auto px-6 py-10 flex flex-col gap-8">
-        <header class="flex justify-between items-center">
-            <div>
-                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Welcome Back</p>
-                <h1 class="text-3xl font-extrabold text-slate-900">Leandro</h1>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="api-credits">
-                    <span class="credits-label">API Credits</span>
-                    <div class="credits-display">
-                        <span id="credits-remaining">--</span>
-                        <span class="credits-divider">/</span>
-                        <span id="credits-total">--</span>
-                    </div>
-                </div>
-                <button
-                    class="size-12 rounded-full bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-primary transition-colors shadow-sm">
-                    <span class="material-symbols-outlined">notifications</span>
-                </button>
-                <div class="size-12 rounded-full bg-center bg-cover border-2 border-white shadow-sm"
-                    style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAfNElZ1FvFKOHo4z6CFF6UvJT1ZRLSWjI3wK0W-cjaO9qhZE4fgI1v1rMEqqF3JSOP3MIcOnS7zYr41nxrZYRnxdB2eTZ6Gskp0SOp_XvYYfkw7fLQY3bpKhWn4UQu1FxhEyU2TnW9t65V8kXIGLSNpZRF_RjOAjP0gc2xv2sn5ekDIV6b6Eh3gYaUF3j5kGfjKHn-E6HmMhYJfoEslOmKml8pBBkEANNVGfo1-TF6CrTST7fsqVEi8ee2ABywx5YecMzAVSj1-xxe");'>
-                </div>
-            </div>
-        </header>
-        <section class="bg-white rounded-3xl p-10 border border-slate-50 card-shadow relative overflow-hidden">
-            <div class="flex justify-between items-start relative z-10">
-                <div class="space-y-6">
-                    <div>
-                        <div class="flex items-center gap-2 mb-2">
-                            <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Total
-                                Balance</span>
-                            <span class="material-symbols-outlined text-growth text-sm">verified_user</span>
-                            <span class="text-[10px] font-bold text-slate-400 uppercase">Secured</span>
-                        </div>
-                        <div class="flex items-baseline gap-1">
-                            <span class="text-6xl font-extrabold tracking-tight text-slate-900"
-                                id="total-profit">€0</span>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <div class="flex items-center gap-2 px-4 py-2 bg-accent-green rounded-full">
-                            <span class="material-symbols-outlined text-growth text-sm font-bold">trending_up</span>
-                            <span class="text-sm font-bold text-growth" id="best-roi">0%</span>
-                        </div>
-                        <span class="text-sm font-semibold text-slate-400" id="last-scan">Never</span>
-                    </div>
-                </div>
-                <div class="stat">
-                    <span class="stat-value" id="total-opportunities">0</span>
-                    <span class="stat-label">Opportunities</span>
-                </div>
-            </div>
-            <div class="absolute right-0 bottom-0 opacity-5 pointer-events-none">
-                <svg height="200" viewBox="0 0 400 200" width="400">
-                    <path class="text-primary" d="M0,150 Q100,50 200,150 T400,100" fill="none" stroke="currentColor"
-                        stroke-width="20"></path>
-                </svg>
-            </div>
-        </section>
-        <section class="bg-white rounded-3xl p-6 border border-slate-50 card-shadow flex justify-around items-center">
-            <button class="flex flex-col items-center gap-3 group" id="scan-btn">
-                <div
-                    class="size-14 rounded-2xl bg-primary flex items-center justify-center text-white transition-transform group-hover:scale-105">
-                    <span class="material-symbols-outlined text-2xl">smart_toy</span>
-                </div>
-                <span class="text-sm font-bold text-slate-600">Start Bot</span>
-            </button>
-            <div class="w-px h-12 bg-slate-100"></div>
-            <button class="flex flex-col items-center gap-3 group">
-                <div
-                    class="size-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 transition-transform group-hover:scale-105">
-                    <span class="material-symbols-outlined text-2xl rotate-45">south_west</span>
-                </div>
-                <span class="text-sm font-bold text-slate-600">Deposit</span>
-            </button>
-            <div class="w-px h-12 bg-slate-100"></div>
-            <button class="flex flex-col items-center gap-3 group">
-                <div
-                    class="size-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-600 transition-transform group-hover:scale-105">
-                    <span class="material-symbols-outlined text-2xl -rotate-45">north_east</span>
-                </div>
-                <span class="text-sm font-bold text-slate-600">Withdraw</span>
-            </button>
-        </section>
-        <aside class="lg:col-span-1 space-y-4">
-            <div class="bg-white p-6 rounded-3xl border border-slate-50 card-shadow">
-                <div class="filter-header flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-extrabold text-slate-900">Filters</h3>
-                    <button id="reset-filters" class="text-sm font-bold text-slate-400 hover:underline">Reset</button>
-                </div>
+<body
+    class="bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark min-h-screen transition-colors duration-300 pb-32">
 
-                <div class="filter-group mb-4">
-                    <label class="text-sm font-bold text-slate-600">Investment (€)</label>
-                    <input type="number" id="filter-investment" value="500" min="10" step="10"
-                        class="w-full mt-2 p-2 border border-slate-200 rounded-lg">
-                </div>
-
-                <div class="filter-group mb-4">
-                    <label class="text-sm font-bold text-slate-600">Minimum ROI (%)</label>
-                    <select id="filter-roi" class="w-full mt-2 p-2 border border-slate-200 rounded-lg">
-                        <option value="0">Any</option>
-                        <option value="0.5" selected>0.5%+</option>
-                        <option value="1">1%+</option>
-                        <option value="2">2%+</option>
-                        <option value="3">3%+</option>
-                        <option value="5">5%+</option>
-                    </select>
-                </div>
-            </div>
-        </aside>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <section class="space-y-4">
-                <div class="flex justify-between items-center px-2">
-                    <h2 class="text-xl font-extrabold text-slate-900">Live Activity</h2>
-                    <a class="text-sm font-bold text-growth hover:underline" href="#">See All</a>
-                </div>
-                <div class="space-y-4" id="opportunities-body">
-                    <!-- Dynamically populated -->
-                </div>
-                <div class="empty-state" id="empty-state" style="display: none;">
-                    <div class="empty-icon">🎯</div>
-                    <h3>No arbitrage opportunities found</h3>
-                    <p>Try adjusting your filters or check back later</p>
-                </div>
-
-                <div class="loading-state" id="loading-state" style="display: none;">
-                    <div class="spinner"></div>
-                    <p>Scanning markets...</p>
-                </div>
-            </section>
-            <section class="space-y-4">
-                <div class="flex justify-between items-center px-2">
-                    <h2 class="text-xl font-extrabold text-slate-900">Active Pairs</h2>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div
-                        class="bg-white p-6 rounded-3xl border border-slate-50 card-shadow flex flex-col gap-8 relative overflow-hidden group">
-                        <div class="flex justify-between items-start">
-                            <div
-                                class="size-12 rounded-full bg-slate-50 flex items-center justify-center font-bold text-slate-700">
-                                €</div>
-                            <span
-                                class="px-2 py-1 bg-accent-green text-growth text-[10px] font-black rounded-lg">+1.2%</span>
-                        </div>
-                        <div>
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-tighter">EUR / USD</p>
-                            <h4 class="text-2xl font-extrabold text-slate-900 mt-1">0.9745</h4>
-                        </div>
-                        <div class="absolute -right-4 -bottom-4 size-16 bg-slate-50 rounded-full opacity-50"></div>
-                    </div>
-                    <div
-                        class="bg-white p-6 rounded-3xl border border-slate-50 card-shadow flex flex-col gap-8 relative overflow-hidden group">
-                        <div class="flex justify-between items-start">
-                            <div
-                                class="size-12 rounded-full bg-slate-50 flex items-center justify-center font-bold text-slate-700">
-                                £</div>
-                            <span class="px-2 py-1 bg-red-50 text-red-500 text-[10px] font-black rounded-lg">-0.4%</span>
-                        </div>
-                        <div>
-                            <p class="text-xs font-bold text-slate-400 uppercase tracking-tighter">GBP / USD</p>
-                            <h4 class="text-2xl font-extrabold text-slate-900 mt-1">0.8211</h4>
-                        </div>
-                        <div class="absolute -right-4 -bottom-4 size-16 bg-slate-50 rounded-full opacity-50"></div>
-                    </div>
-                </div>
-            </section>
+    <!-- Header -->
+    <header class="w-full max-w-6xl mx-auto p-6 flex justify-between items-start">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">BetGO</h1>
+            {% if current_user.is_authenticated %}
+            <p class="text-primary font-medium text-sm flex items-center mt-1">
+                Welcome, {{ current_user.name }}
+            </p>
+            {% else %}
+            <a class="text-primary hover:text-primary-dark font-medium text-sm flex items-center mt-1"
+                href="{{ url_for('auth.login') }}">
+                Sign in with Google
+            </a>
+            {% endif %}
         </div>
-    </div>
-    <div class="fixed bottom-10 left-1/2 -translate-x-1/2 z-50">
-        <nav class="bg-primary px-8 py-4 rounded-full flex items-center gap-12 shadow-2xl">
-            <button class="text-slate-400 hover:text-white transition-colors">
-                <span class="material-symbols-outlined text-2xl">history</span>
+        <div class="flex items-center gap-4">
+            <div class="text-right">
+                <span class="text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wider font-semibold">API
+                    Status</span>
+                <div class="flex items-center justify-end gap-2 mt-1">
+                    <span class="relative flex h-3 w-3">
+                        <span
+                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                    </span>
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Operational</span>
+                </div>
+                <div class="text-xs text-gray-400 dark:text-gray-600 mt-1">Credits: <span
+                        id="credits-remaining">--</span>/<span id="credits-total">--</span></div>
+            </div>
+            {% if current_user.is_authenticated %}
+            <div class="size-12 rounded-full bg-center bg-cover border-2 border-white shadow-sm"
+                style='background-image: url("{{ current_user.profile_pic }}");'></div>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="w-full max-w-6xl mx-auto px-6 space-y-6">
+        <!-- Balance Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div
+                class="bg-card-light dark:bg-card-dark rounded-xl p-6 shadow-soft relative overflow-hidden md:col-span-2">
+                <div
+                    class="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-16 -mt-16 pointer-events-none">
+                </div>
+                <div class="flex justify-between items-start relative z-10">
+                    <div>
+                        <div
+                            class="flex items-center gap-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
+                            Total Connected Balance
+                            <span class="material-icons-round text-primary text-sm" title="Secured">verified_user</span>
+                        </div>
+                        <div class="text-5xl font-bold text-gray-900 dark:text-white" id="total-balance">€0.00</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-gray-500 dark:text-gray-400">Active Bookmakers</div>
+                        <div class="text-2xl font-semibold text-gray-900 dark:text-white"><span
+                                id="active-bookmakers">0</span> <span class="text-gray-400 text-lg">/ 12</span></div>
+                    </div>
+                </div>
+                <div class="mt-8 flex items-center gap-4">
+                    <div
+                        class="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1">
+                        <span class="material-icons-round text-sm">trending_up</span>
+                        <span id="best-roi">+0%</span>
+                    </div>
+                    <span class="text-gray-400 dark:text-gray-500 text-sm font-mono" id="last-scan">Last updated:
+                        Never</span>
+                </div>
+            </div>
+
+            <!-- Start Bot / Connect New -->
+            <div class="bg-primary text-white rounded-xl p-6 shadow-lg flex flex-col justify-center items-center text-center cursor-pointer hover:bg-primary-dark transition-colors group"
+                id="scan-btn">
+                <div class="bg-white/20 p-4 rounded-full mb-4 group-hover:scale-110 transition-transform">
+                    <span class="material-icons-round text-3xl">smart_toy</span>
+                </div>
+                <h3 class="font-bold text-lg">Start Bot</h3>
+                <p class="text-white/80 text-sm mt-1">Scan for arbitrage opportunities</p>
+            </div>
+        </div>
+
+        <!-- Connected Bookmakers Section -->
+        <div class="flex justify-between items-end pt-4">
+            <div>
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white">Connected Bookmakers</h2>
+                <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage your connected betting platforms and
+                    balances.</p>
+            </div>
+            <button class="text-primary hover:text-primary-dark text-sm font-medium flex items-center gap-1"
+                id="refresh-all-btn">
+                <span class="material-icons-round text-sm">sync</span> Refresh All
             </button>
-            <button
-                class="size-12 bg-white rounded-full flex items-center justify-center text-primary shadow-lg transition-transform hover:scale-110">
-                <span class="material-symbols-outlined text-2xl font-bold">home</span>
-            </button>
-            <button class="text-slate-400 hover:text-white transition-colors">
-                <span class="material-symbols-outlined text-2xl">settings</span>
-            </button>
-        </nav>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="bookmakers-grid">
+            <!-- Placeholder card when no bookmakers -->
+            <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 shadow-soft border border-dashed border-gray-300 dark:border-gray-700 flex flex-col items-center justify-center text-center hover:border-primary dark:hover:border-primary transition-colors cursor-pointer group h-full min-h-[220px]"
+                onclick="document.getElementById('bookmaker-modal').style.display='flex'">
+                <div
+                    class="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4 group-hover:bg-primary/10 transition-colors">
+                    <span class="material-icons-round text-2xl text-gray-400 group-hover:text-primary">add</span>
+                </div>
+                <h3 class="font-bold text-gray-900 dark:text-white">Connect Bookmaker</h3>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">Link your betting accounts</p>
+                <button class="text-primary font-medium text-sm flex items-center gap-1 group-hover:underline">
+                    <span class="material-icons-round text-sm">add</span> Connect Account
+                </button>
+            </div>
+        </div>
+
+        <!-- Live Opportunities Section -->
+        <div class="flex justify-between items-center px-2 pt-4">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">Live Opportunities</h2>
+            <a class="text-sm font-bold text-primary hover:underline" href="/history">See All</a>
+        </div>
+
+        <div class="space-y-4" id="opportunities-body">
+            <!-- Dynamically populated -->
+        </div>
+
+        <div class="bg-card-light dark:bg-card-dark rounded-xl p-8 text-center" id="empty-state" style="display: none;">
+            <div class="text-4xl mb-4">🎯</div>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white">No arbitrage opportunities found</h3>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">Try adjusting your filters or check back later</p>
+        </div>
+
+        <div class="bg-card-light dark:bg-card-dark rounded-xl p-8 text-center" id="loading-state"
+            style="display: none;">
+            <div class="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4">
+            </div>
+            <p class="text-gray-500 dark:text-gray-400">Scanning markets...</p>
+        </div>
+    </main>
+
+    <!-- Floating Bottom Navigation -->
+    <div class="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50">
+        <div
+            class="bg-accent text-white rounded-full px-6 py-3 shadow-2xl flex items-center gap-8 border border-white/10 backdrop-blur-md bg-opacity-90">
+            <a href="/history" class="p-2 hover:bg-white/10 rounded-full transition-colors opacity-70 hover:opacity-100"
+                title="History">
+                <span class="material-icons-round text-xl">history</span>
+            </a>
+            <a href="/" class="p-3 bg-white text-accent rounded-full shadow-lg hover:scale-110 transition-transform"
+                title="Home">
+                <span class="material-icons-round text-xl font-bold">home</span>
+            </a>
+            <a href="/settings"
+                class="p-2 hover:bg-white/10 rounded-full transition-colors opacity-70 hover:opacity-100"
+                title="Settings">
+                <span class="material-icons-round text-xl">settings</span>
+            </a>
+        </div>
     </div>
 
     <!-- Bookmaker Reference Modal -->
-    <div class="modal" id="bookmaker-modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Bookmaker Quick Links</h3>
-                <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm items-center justify-center z-50" id="bookmaker-modal"
+        style="display: none;">
+        <div class="bg-card-light dark:bg-card-dark rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white">Connect Bookmaker</h3>
+                <button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" onclick="closeModal()">
+                    <span class="material-icons-round">close</span>
+                </button>
             </div>
-            <div class="modal-body" id="bookmaker-links">
+            <div class="space-y-3" id="bookmaker-links">
                 <!-- Dynamically populated -->
             </div>
         </div>
     </div>
 
     <!-- Toast Notifications -->
-    <div class="toast-container" id="toast-container"></div>
+    <div class="fixed top-4 right-4 space-y-2 z-50" id="toast-container"></div>
 
+    <script>
+        // Dark mode initialization
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
 
+        // Toggle dark mode on API status click (easter egg)
+        document.querySelector('header div.text-right')?.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        });
+
+        function closeModal() {
+            document.getElementById('bookmaker-modal').style.display = 'none';
+        }
+    </script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 
