@@ -174,7 +174,55 @@ def place_virtual_bet(arb_opportunity, investment=None):
     # Save bet
     db['bets'].append(bet)
     save_db(db)
-    
+
+    # Dual-write to SQLAlchemy (best-effort, never breaks JSON fallback)
+    if _HAS_DB:
+        try:
+            record = ArbitrageRecord(
+                placed_at=_dt.fromisoformat(bet['placed_at']),
+                status='pending',
+                sport_key=arb_opportunity.get('sport', ''),
+                sport_title=arb_opportunity.get('sport_title', ''),
+                home_team=arb_opportunity.get('home_team', ''),
+                away_team=arb_opportunity.get('away_team', ''),
+                commence_time=arb_opportunity.get('commence_time', ''),
+                market_type=arb_opportunity.get('market', ''),
+                line=arb_opportunity.get('line'),
+                expected_roi=arb_opportunity.get('roi', 0),
+                expected_profit=arb_opportunity.get('profit', 0),
+                total_stake=total_stake,
+                quality_score=arb_opportunity.get('quality_score'),
+                is_mug_bet=False,
+            )
+            db_sa = ArbitrageRecord.__table__.metadata.bind  # unused — use db.session
+            from models import db as _db_sa
+            _db_sa.session.add(record)
+            _db_sa.session.flush()  # get record.id
+
+            for outcome, data in arb_opportunity['stakes'].items():
+                leg = ArbitrageLeg(
+                    arb_record_id=record.id,
+                    outcome=outcome,
+                    odds=data.get('odds', 0),
+                    stake=data.get('stake', 0),
+                    rounded_stake=data.get('rounded_stake', data.get('stake', 0)),
+                    bookmaker_key=data.get('book_key', ''),
+                    bookmaker_name=data.get('book', ''),
+                    potential_return=round(data.get('stake', 0) * data.get('odds', 1), 2),
+                    status='pending',
+                    placed_at_offset_seconds=0,
+                )
+                _db_sa.session.add(leg)
+
+            _db_sa.session.commit()
+        except Exception as _e:
+            try:
+                from models import db as _db_sa
+                _db_sa.session.rollback()
+            except Exception:
+                pass
+            print(f'[simulation] DB dual-write error (place): {_e}')
+
     return {
         'success': True,
         'bet_id': bet_id,
@@ -253,7 +301,42 @@ def settle_bet(bet_id, winning_outcome):
     db['bets'][bet_index] = bet
     
     save_db(db)
-    
+
+    # Dual-write settlement to SQLAlchemy (best-effort)
+    if _HAS_DB:
+        try:
+            from models import db as _db_sa
+            # Find matching ArbitrageRecord by sport_key + status pending
+            record = ArbitrageRecord.query.filter_by(
+                sport_key=bet.get('sport', ''),
+                status='pending'
+            ).order_by(ArbitrageRecord.placed_at.desc()).first()
+
+            if record:
+                record.status = 'settled'
+                record.actual_return = bet['actual_return']
+                record.actual_profit = bet['actual_profit']
+                record.settled_at = _dt.fromisoformat(bet['settled_at'])
+                record.winning_outcome = winning_outcome
+
+                # Update each leg status
+                for db_leg in record.legs:
+                    if db_leg.outcome == winning_outcome:
+                        db_leg.status = 'won'
+                        db_leg.actual_return = db_leg.potential_return
+                    else:
+                        db_leg.status = 'lost'
+                        db_leg.actual_return = 0.0
+
+                _db_sa.session.commit()
+        except Exception as _e:
+            try:
+                from models import db as _db_sa
+                _db_sa.session.rollback()
+            except Exception:
+                pass
+            print(f'[simulation] DB dual-write error (settle): {_e}')
+
     return {
         'success': True,
         'bet_id': bet_id,

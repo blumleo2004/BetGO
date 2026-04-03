@@ -312,15 +312,33 @@ class AutoScanner:
         
         print("\n⏹️ Auto Scanner stopped")
     
+    def _start_daily_reset_scheduler(self, flask_app):
+        """Resets daily bet counters at midnight every day."""
+        import account_manager
+        def _loop():
+            while self.running:
+                now = datetime.now()
+                # seconds until midnight
+                seconds_until_midnight = ((24 - now.hour - 1) * 3600 + (60 - now.minute - 1) * 60 + (60 - now.second))
+                time.sleep(seconds_until_midnight + 5)
+                try:
+                    with flask_app.app_context():
+                        account_manager.reset_daily_counters()
+                    print('[AutoScanner] Daily counters reset')
+                except Exception as e:
+                    print(f'[AutoScanner] Daily reset error: {e}')
+        t = threading.Thread(target=_loop, daemon=True)
+        t.start()
+
     def start(self):
         """Start background scanning"""
         if self.running:
             return {"success": False, "message": "Already running"}
-        
+
         self.running = True
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
         self.thread.start()
-        
+
         return {"success": True, "message": f"Auto scanner started (peak hours: {self.peak_start}:00-{self.peak_end}:00)"}
     
     def stop(self):

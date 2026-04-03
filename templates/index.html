@@ -111,6 +111,19 @@
         </div>
     </header>
 
+    <!-- WM 2026 Banner (shown when days_until_start < 90) -->
+    <div id="wm2026-banner" style="display:none;" class="w-full max-w-6xl mx-auto px-6 mb-2">
+        <div class="rounded-xl px-5 py-3 flex items-center gap-3 shadow-md"
+             style="background: linear-gradient(135deg, #d4af37 0%, #22c55e 100%); color: #0a1a0a;">
+            <span class="text-2xl">🏆</span>
+            <div>
+                <span class="font-bold text-base" id="wm-banner-text">WM 2026</span>
+                <span class="ml-2 text-sm font-medium opacity-80" id="wm-banner-sub"></span>
+            </div>
+            <span class="ml-auto text-xs font-bold uppercase tracking-wider opacity-70" id="wm-banner-days"></span>
+        </div>
+    </div>
+
     <main class="w-full max-w-6xl mx-auto px-6 space-y-6">
         <!-- Balance Overview -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -183,6 +196,37 @@
                     <span class="material-icons-round text-sm">add</span> Connect Account
                 </button>
             </div>
+        </div>
+
+        <!-- Filter Panel -->
+        <div class="bg-card-light dark:bg-card-dark rounded-xl p-4 shadow-soft flex flex-wrap gap-4 items-center">
+            <div class="flex flex-col gap-1 min-w-[140px]">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Min ROI (%)</label>
+                <input type="number" id="filter-roi" value="0.5" step="0.1" min="0"
+                    class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-24">
+            </div>
+            <div class="flex flex-col gap-1 min-w-[140px]">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Investment (€)</label>
+                <input type="number" id="filter-investment" value="500" step="50" min="10"
+                    class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-24">
+            </div>
+            <div class="flex flex-col gap-1 min-w-[140px]">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Max Hours</label>
+                <input type="number" id="filter-timeframe" value="24" step="1" min="1"
+                    class="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-24">
+            </div>
+            <div class="flex flex-col gap-1 flex-1 min-w-[160px]">
+                <label class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Min Quality: <span id="min-quality-val" class="text-primary font-bold">0</span>
+                </label>
+                <input type="range" id="filter-min-quality" value="0" min="0" max="100" step="5"
+                    class="w-full accent-primary"
+                    oninput="document.getElementById('min-quality-val').textContent=this.value; filterByQuality()">
+            </div>
+            <button id="reset-filters"
+                class="text-xs font-medium text-gray-400 hover:text-primary flex items-center gap-1 mt-auto">
+                <span class="material-icons-round text-sm">restart_alt</span> Reset
+            </button>
         </div>
 
         <!-- Live Opportunities Section -->
@@ -264,6 +308,36 @@
 
         function closeModal() {
             document.getElementById('bookmaker-modal').style.display = 'none';
+        }
+
+        // WM 2026 Banner
+        async function loadWm2026Banner() {
+            try {
+                const res = await fetch('/api/wm2026/status');
+                const data = await res.json();
+                if (data && data.days_until_start < 90) {
+                    const banner = document.getElementById('wm2026-banner');
+                    const text = document.getElementById('wm-banner-text');
+                    const sub = document.getElementById('wm-banner-sub');
+                    const days = document.getElementById('wm-banner-days');
+                    text.textContent = 'WM 2026';
+                    sub.textContent = data.message || '';
+                    days.textContent = data.days_until_start > 0
+                        ? `In ${data.days_until_start} Tagen`
+                        : (data.active ? 'LIVE' : '');
+                    banner.style.display = 'block';
+                }
+            } catch (e) { /* silent */ }
+        }
+        loadWm2026Banner();
+
+        // Quality filter (client-side, applied after render)
+        function filterByQuality() {
+            const minQ = parseInt(document.getElementById('filter-min-quality')?.value || '0', 10);
+            document.querySelectorAll('.opp-card').forEach(card => {
+                const q = parseFloat(card.dataset.quality || '0');
+                card.style.display = q >= minQ ? '' : 'none';
+            });
         }
     </script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>

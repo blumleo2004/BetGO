@@ -215,6 +215,16 @@ function updateApiCredits(usage) {
     }
 }
 
+function getQualityBadge(score) {
+    if (score === undefined || score === null) return '';
+    const q = parseFloat(score);
+    let color, label;
+    if (q >= 70) { color = '#22c55e'; label = 'green'; }
+    else if (q >= 40) { color = '#f59e0b'; label = 'yellow'; }
+    else { color = '#ef4444'; label = 'red'; }
+    return `<span title="Quality Score" style="display:inline-flex;align-items:center;background:${color}22;color:${color};border-radius:999px;padding:1px 8px;font-size:0.7rem;font-weight:700;margin-left:4px;">Q${Math.round(q)}</span>`;
+}
+
 function renderOpportunities() {
     if (opportunities.length === 0) {
         opportunitiesBody.innerHTML = '';
@@ -229,28 +239,42 @@ function renderOpportunities() {
         const now = new Date();
         const hoursUntil = Math.round((eventTime - now) / (1000 * 60 * 60));
         const timeDisplay = hoursUntil < 1 ? 'Soon' : `${hoursUntil}h`;
+        const quality = opp.quality_score;
 
-        // Get bookmaker names from stakes
-        const bookmakers = Object.values(opp.stakes).map(s => s.book).join(' vs ');
+        // Build bookmaker display with rounded stakes
+        const stakeEntries = Object.entries(opp.stakes || {});
+        const bookmakers = stakeEntries.map(([outcome, s]) => {
+            const displayStake = s.rounded_stake !== undefined ? s.rounded_stake : s.stake;
+            const isRounded = s.rounded_stake !== undefined && s.rounded_stake !== s.stake;
+            return `${s.book} €${displayStake.toFixed(2)}${isRounded ? '<span style="font-size:0.6rem;opacity:0.6;margin-left:2px;">~</span>' : ''}`;
+        }).join(' · ');
 
         return `
-            <div class="bg-white p-5 rounded-2xl border border-slate-50 card-shadow flex items-center justify-between group hover:border-growth transition-all cursor-pointer" onclick="placeVirtualBet(${index})">
+            <div class="opp-card bg-white dark:bg-card-dark p-5 rounded-2xl border border-slate-50 dark:border-gray-700 shadow-soft flex items-center justify-between group hover:border-primary transition-all cursor-pointer"
+                 data-quality="${quality !== undefined ? quality : 100}"
+                 onclick="placeVirtualBet(${index})">
                 <div class="flex items-center gap-4">
-                    <div class="size-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-900 text-2xl">
+                    <div class="size-12 rounded-xl bg-slate-50 dark:bg-gray-800 flex items-center justify-center text-slate-900 dark:text-white text-2xl">
                         ${getSportEmoji(opp.sport)}
                     </div>
                     <div>
-                        <h3 class="font-bold text-slate-900">${opp.home_team} vs ${opp.away_team}</h3>
-                        <p class="text-xs text-slate-400 font-medium">${bookmakers}</p>
+                        <h3 class="font-bold text-slate-900 dark:text-white flex items-center flex-wrap gap-1">
+                            ${opp.home_team} vs ${opp.away_team}
+                            ${getQualityBadge(quality)}
+                        </h3>
+                        <p class="text-xs text-slate-400 font-medium mt-0.5">${bookmakers}</p>
                     </div>
                 </div>
                 <div class="text-right">
-                    <p class="font-bold text-growth">+€${opp.profit.toFixed(2)} (${opp.roi.toFixed(2)}%)</p>
+                    <p class="font-bold text-primary">+€${opp.profit.toFixed(2)} (${opp.roi.toFixed(2)}%)</p>
                     <p class="text-[10px] text-slate-400 font-medium uppercase">${timeDisplay}</p>
                 </div>
             </div>
         `;
     }).join('');
+
+    // Apply quality filter after render
+    if (typeof filterByQuality === 'function') filterByQuality();
 }
 
 function getSportEmoji(sport) {

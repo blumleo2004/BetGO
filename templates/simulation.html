@@ -270,6 +270,17 @@
             </div>
         </div>
 
+        <!-- Bookmaker Balances -->
+        <div class="pending-bets" id="bookmaker-balances-section">
+            <div class="section-header">
+                <h3 class="section-title">💳 Bookmaker Balances</h3>
+                <button onclick="loadBookmakerBalances()" style="font-size:0.8rem;color:var(--accent-primary);background:none;border:none;cursor:pointer;">↻ Refresh</button>
+            </div>
+            <div id="bookmaker-balances-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.75rem;">
+                <p style="color: var(--text-muted);">Loading...</p>
+            </div>
+        </div>
+
         <!-- Pending Bets -->
         <div class="pending-bets">
             <div class="section-header">
@@ -314,6 +325,91 @@
     </main>
 
     <script>
+        // ── Bookmaker balances (JSON sim data + /api/accounts) ──────────────
+        function banRiskColor(score) {
+            if (score === undefined || score === null) return '#6b7280';
+            if (score >= 70) return '#ef4444';
+            if (score >= 40) return '#f59e0b';
+            return '#22c55e';
+        }
+
+        function statusDot(status) {
+            const colors = {
+                active: '#22c55e',
+                new: '#3b82f6',
+                restricted: '#f59e0b',
+                gubbed: '#ef4444',
+                dormant: '#9ca3af',
+            };
+            const c = colors[status] || '#6b7280';
+            return `<span title="${status}" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c};margin-right:5px;"></span>`;
+        }
+
+        async function loadBookmakerBalances() {
+            const container = document.getElementById('bookmaker-balances-list');
+            try {
+                const [simRes, acctRes] = await Promise.all([
+                    fetch('/api/simulation/stats'),
+                    fetch('/api/accounts')
+                ]);
+                const simData = await simRes.json();
+                const accounts = await acctRes.json();
+
+                const simBalances = simData.bookmaker_balances || {};
+
+                // Build merged view: keyed by bookmaker name/key
+                const merged = {};
+
+                // From JSON simulation data
+                for (const [name, bal] of Object.entries(simBalances)) {
+                    merged[name] = merged[name] || { name, sim_balance: null, sim_in_play: null, accounts: [] };
+                    merged[name].sim_balance = bal.balance;
+                    merged[name].sim_in_play = bal.in_play;
+                }
+
+                // From /api/accounts
+                for (const acct of accounts) {
+                    const key = acct.bookmaker;
+                    const label = acct.user_label || acct.bookmaker;
+                    merged[key] = merged[key] || { name: label, sim_balance: null, sim_in_play: null, accounts: [] };
+                    if (!merged[key].display_name) merged[key].display_name = label;
+                    merged[key].accounts.push(acct);
+                }
+
+                if (Object.keys(merged).length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-muted);">No bookmaker data yet.</p>';
+                    return;
+                }
+
+                container.innerHTML = Object.values(merged).map(bm => {
+                    const displayName = bm.display_name || bm.name;
+                    const acctRows = bm.accounts.map(a => {
+                        const riskScore = a.ban_risk_score;
+                        return `<div style="font-size:0.78rem;color:var(--text-secondary);display:flex;align-items:center;gap:4px;margin-top:3px;">
+                            ${statusDot(a.status)}
+                            <span>${a.user_label || a.bookmaker}</span>
+                            <span style="margin-left:auto;">€${(a.current_balance||0).toFixed(2)}</span>
+                            <span title="Ban risk" style="margin-left:4px;font-size:0.7rem;font-weight:700;color:${banRiskColor(riskScore)};">
+                                ${riskScore !== undefined ? `⚠${Math.round(riskScore)}` : ''}
+                            </span>
+                        </div>`;
+                    }).join('');
+
+                    const simInfo = bm.sim_balance !== null
+                        ? `<div style="font-size:0.78rem;color:var(--text-secondary);">Sim: €${bm.sim_balance.toFixed(2)} (in-play: €${(bm.sim_in_play||0).toFixed(2)})</div>`
+                        : '';
+
+                    return `<div class="sim-stat-card" style="padding:0.85rem;">
+                        <div style="font-weight:600;font-size:0.9rem;margin-bottom:4px;">${displayName}</div>
+                        ${simInfo}
+                        ${acctRows}
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                container.innerHTML = `<p style="color:var(--text-muted);">Failed to load: ${e.message}</p>`;
+            }
+        }
+
         // Load simulation data
         async function loadSimulationData() {
             try {
@@ -518,9 +614,11 @@
 
         // Initial load
         loadSimulationData();
+        loadBookmakerBalances();
 
         // Auto-refresh every 30 seconds
         setInterval(loadSimulationData, 30000);
+        setInterval(loadBookmakerBalances, 60000);
     </script>
 </body>
 

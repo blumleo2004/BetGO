@@ -1,0 +1,97 @@
+BETGO Dashboard starting...
+Open http://localhost:5000 in your browser
+Simulation: http://localhost:5000/simulation
+Accounts: http://localhost:5000/accounts
+Debug: http://localhost:5000/api/debug/health
+Scheduler: ? Peak Time - Scan frequently!
+The Odds API: 0 keys loaded
+Discord: Not configured
+To start auto-scanning: POST /api/scanner/start
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on http://127.0.0.1:5000
+Press CTRL+C to quit
+ * Restarting with watchdog (windowsapi)
+ * Debugger is active!
+ * Debugger PIN: 200-207-232
+ * Detected change in 'C:\\dev\\BetGO\\models.py', reloading
+BETGO Dashboard starting...
+Open http://localhost:5000 in your browser
+Simulation: http://localhost:5000/simulation
+Accounts: http://localhost:5000/accounts
+Debug: http://localhost:5000/api/debug/health
+Scheduler: ? Peak Time - Scan frequently!
+The Odds API: 0 keys loaded
+Discord: Not configured
+To start auto-scanning: POST /api/scanner/start
+ * Restarting with watchdog (windowsapi)
+ * Debugger is active!
+ * Debugger PIN: 200-207-232
+ * Detected change in 'C:\\dev\\BetGO\\simulation.py', reloading
+BETGO Dashboard starting...
+Open http://localhost:5000 in your browser
+Simulation: http://localhost:5000/simulation
+Accounts: http://localhost:5000/accounts
+Debug: http://localhost:5000/api/debug/health
+Scheduler: ? Off-peak - Save credits
+The Odds API: 0 keys loaded
+Discord: Not configured
+To start auto-scanning: POST /api/scanner/start
+ * Restarting with watchdog (windowsapi)
+ * Debugger is active!
+ * Debugger PIN: 200-207-232
+ * Detected change in 'C:\\dev\\BetGO\\simulation.py', reloading
+ * Detected change in 'C:\\dev\\BetGO\\simulation.py.tmp.31056.1775181978922', reloading
+BETGO Dashboard starting...
+Open http://localhost:5000 in your browser
+Simulation: http://localhost:5000/simulation
+Accounts: http://localhost:5000/accounts
+Debug: http://localhost:5000/api/debug/health
+Scheduler: ? Off-peak - Save credits
+The Odds API: 0 keys loaded
+Discord: Not configured
+To start auto-scanning: POST /api/scanner/start
+ * Restarting with watchdog (windowsapi)
+ * Debugger is active!
+ * Debugger PIN: 200-207-232
+ * Detected change in 'C:\\dev\\BetGO\\api_optimizer.py', reloading
+BETGO Dashboard starting...
+Open http://localhost:5000 in your browser
+Simulation: http://localhost:5000/simulation
+Accounts: http://localhost:5000/accounts
+Debug: http://localhost:5000/api/debug/health
+Scheduler: ? Off-peak - Save credits
+The Odds API: 0 keys loaded
+Discord: Not configured
+To start auto-scanning: POST /api/scanner/start
+ * Restarting with watchdog (windowsapi)
+ * Debugger is active!
+ * Debugger PIN: 200-207-232
+ * Detected change in 'C:\\dev\\BetGO\\simulation.py', reloading
+ * Detected change in 'C:\\dev\\BetGO\\simulation.py.tmp.31056.1775181999621', reloading
+BETGO Dashboard starting...
+Open http://localhost:5000 in your browser
+Simulation: http://localhost:5000/simulation
+Accounts: http://localhost:5000/accounts
+Debug: http://localhost:5000/api/debug/health
+Scheduler: ? Off-peak - Save credits
+The Odds API: 0 keys loaded
+Discord: Not configured
+To start auto-scanning: POST /api/scanner/start
+ * Restarting with watchdog (windowsapi)
+ * Debugger is active!
+ * Debugger PIN: 200-207-232
+ * Detected change in 'C:\\dev\\BetGO\\auto_scanner.py', reloading
+ * Detected change in 'C:\\dev\\BetGO\\auto_scanner.py.tmp.31056.1775182115091', reloading
+BETGO Dashboard starting...
+Open http://localhost:5000 in your browser
+Simulation: http://localhost:5000/simulation
+Accounts: http://localhost:5000/accounts
+Debug: http://localhost:5000/api/debug/health
+Scheduler: ? Off-peak - Save credits
+The Odds API: 0 keys loaded
+Discord: Not configured
+To start auto-scanning: POST /api/scanner/start
+ * Restarting with watchdog (windowsapi)
+ * De

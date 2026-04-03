@@ -73,6 +73,13 @@ def load_user(user_id):
 with app.app_context():
     db.create_all()
 
+# Start daily counter reset scheduler (resets account daily bet counters at midnight)
+try:
+    import auto_scanner as _auto_scanner
+    _auto_scanner.scanner._start_daily_reset_scheduler(app)
+except Exception as _e:
+    print(f'[app] Could not start daily reset scheduler: {_e}')
+
 # Register Blueprints
 app.register_blueprint(auth_bp, url_prefix='/auth')
 
