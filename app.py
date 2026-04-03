@@ -673,6 +673,23 @@ def analytics_wm2026_readiness():
     return jsonify(analytics.get_wm2026_readiness_report())
 
 
+@app.route('/api/analytics/opportunities')
+def analytics_opportunities():
+    """Summary of recent arb opportunities placed as simulation bets"""
+    import analytics
+    days = request.args.get('days', 7, type=int)
+    return jsonify(analytics.get_opportunity_summary(days))
+
+
+@app.route('/api/simulation/auto-settle', methods=['POST'])
+def auto_settle():
+    """Auto-settle pending bets using real match results"""
+    import auto_settler
+    import api_optimizer
+    key = api_optimizer.get_api_key() or config.API_KEY
+    return jsonify(auto_settler.try_settle_pending_bets(key))
+
+
 @app.route('/accounts')
 def accounts_page():
     """Account manager dashboard"""

@@ -79,10 +79,30 @@ def get_wm2026_scanner_config() -> dict:
     return base
 
 
+def is_wm2026_match(home_team: str, away_team: str) -> bool:
+    """
+    Returns True if both teams appear in the WM 2026 qualified teams list.
+    Used as a fallback when sport_key alone is not enough to identify WC matches
+    (e.g. during friendly windows where the same teams play non-WC games).
+    """
+    qualified = config.WM2026_QUALIFIED_TEAMS
+    return home_team in qualified and away_team in qualified
+
+
 def filter_for_wm2026(opportunities: list) -> list:
-    """Return only WM 2026 opportunities from a list."""
+    """
+    Return only WM 2026 opportunities from a list.
+    Primary filter: sport_key matches the WC key.
+    Fallback filter: both teams are in WM2026_QUALIFIED_TEAMS.
+    """
     sport_key = config.WM2026['sport_key']
-    return [o for o in opportunities if o.get('sport') == sport_key]
+    result = []
+    for o in opportunities:
+        if o.get('sport') == sport_key:
+            result.append(o)
+        elif is_wm2026_match(o.get('home_team', ''), o.get('away_team', '')):
+            result.append(o)
+    return result
 
 
 def get_stage_aware_investment(phase: str, base_investment: float) -> float:

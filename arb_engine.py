@@ -18,6 +18,7 @@ class ArbEngine:
         self.used_requests = None
         self.cache_hits = 0
         self.api_calls = 0
+        self.last_scan_time = None
         
     def _get_api_key(self) -> str:
         """Get best available API key"""
@@ -284,6 +285,9 @@ class ArbEngine:
         # Add quality scores (does not re-fetch — post-processing only)
         opportunities = self.quality_filter(opportunities)
 
+        # Record scan completion time for freshness tracking
+        self.last_scan_time = datetime.now(timezone.utc)
+
         return opportunities
 
     def quality_filter(self, opportunities: list, cfg: dict = None) -> list:
@@ -314,10 +318,41 @@ class ArbEngine:
                    for s in stakes.values()):
                 continue
 
-            opp['quality_score'] = self._quality_score(opp)
+            score = self._quality_score(opp)
+
+            # Freshness deductions: older scan → lower score
+            age_seconds = self.get_opportunity_freshness(opp)
+            if age_seconds > 600:    # > 10 minutes
+                score -= 40
+            elif age_seconds > 300:  # > 5 minutes
+                score -= 20
+            opp['freshness_score'] = round(max(score, 0.0), 1)
+            opp['quality_score'] = opp['freshness_score']
+
             filtered.append(opp)
 
         return filtered
+
+    def is_opportunity_stale(self, opp: dict, max_age_minutes: int = 8) -> bool:
+        """
+        Returns True if the scan that found this opportunity was more than
+        max_age_minutes ago.  Opportunities disappear fast — stale ones may
+        already be gone.
+        """
+        if self.last_scan_time is None:
+            return False
+        age_seconds = self.get_opportunity_freshness(opp)
+        return age_seconds > max_age_minutes * 60
+
+    def get_opportunity_freshness(self, opp: dict) -> float:
+        """
+        Returns seconds elapsed since the last completed scan.
+        Returns 0 if no scan has completed yet.
+        """
+        if self.last_scan_time is None:
+            return 0.0
+        now = datetime.now(timezone.utc)
+        return (now - self.last_scan_time).total_seconds()
 
     def _quality_score(self, opp: dict) -> float:
         """Calculate quality score 0-100. Higher = better opportunity."""

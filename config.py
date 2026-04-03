@@ -205,6 +205,34 @@ WM2026 = {
     'min_roi_wm': 0.3,            # Accept thinner margins during WC (more volume)
 }
 
+# ─── WM 2026 Group & Team Data ───────────────────────────────────────────────
+WM2026_GROUPS = {
+    'A': ['Qatar', 'Ecuador', 'Senegal', 'Netherlands'],  # placeholder - update with real draw
+    # Groups B-L will be added after the draw (December 2025)
+}
+
+WM2026_QUALIFIED_TEAMS = [
+    # UEFA (24 spots)
+    'Germany', 'France', 'Spain', 'England', 'Portugal', 'Netherlands',
+    'Belgium', 'Italy', 'Croatia', 'Austria', 'Switzerland', 'Denmark',
+    'Poland', 'Serbia', 'Hungary', 'Scotland', 'Turkey', 'Czech Republic',
+    'Romania', 'Slovakia', 'Ukraine', 'Slovenia', 'Albania', 'Georgia',
+    # CONMEBOL (6 + 1 playoff)
+    'Brazil', 'Argentina', 'Colombia', 'Uruguay', 'Ecuador', 'Paraguay',
+    'Bolivia', 'Chile', 'Venezuela', 'Peru',
+    # CONCACAF (6 + 1 playoff)
+    'United States', 'Mexico', 'Canada', 'Panama', 'Costa Rica', 'Honduras',
+    'Jamaica', 'El Salvador',
+    # AFC (8 + 1 playoff)
+    'Japan', 'South Korea', 'Iran', 'Australia', 'Saudi Arabia', 'Qatar',
+    'Iraq', 'Jordan', 'Uzbekistan', 'United Arab Emirates',
+    # CAF (9 + 1 playoff)
+    'Morocco', 'Senegal', 'Egypt', 'Nigeria', 'Cameroon', 'Ghana',
+    'Tunisia', 'Algeria', 'Mali', 'Ivory Coast', 'South Africa',
+    # OFC / inter-confederation playoff
+    'New Zealand',
+]
+
 # ─── API endpoints ────────────────────────────────────────────────────────────
 API_BASE_URL = 'https://api.the-odds-api.com/v4'
 

@@ -152,6 +152,45 @@ def get_wm2026_readiness_report() -> dict:
     return report
 
 
+def get_opportunity_summary(days: int = 7) -> dict:
+    """Summary of recent opportunities placed as simulation bets."""
+    try:
+        from models import ArbitrageRecord
+
+        since = datetime.utcnow() - timedelta(days=days)
+        records = ArbitrageRecord.query.filter(
+            ArbitrageRecord.placed_at >= since
+        ).all()
+
+        if not records:
+            return {'total': 0, 'days': days}
+
+        avg_roi = sum(r.expected_roi or 0 for r in records) / len(records)
+        avg_quality = sum(r.quality_score or 0 for r in records) / len(records)
+        best = max(records, key=lambda r: r.expected_roi or 0)
+
+        return {
+            'total': len(records),
+            'days': days,
+            'avg_roi': round(avg_roi, 2),
+            'avg_quality_score': round(avg_quality, 1),
+            'settled': sum(1 for r in records if r.status == 'settled'),
+            'pending': sum(1 for r in records if r.status == 'pending'),
+            'best_opportunity': {
+                'event': (f"{best.home_team} vs {best.away_team}"
+                          if best.home_team else None),
+                'roi': best.expected_roi,
+                'sport': best.sport_title,
+            } if records else None,
+            'total_staked': round(sum(r.total_stake or 0 for r in records), 2),
+            'expected_profit': round(
+                sum(r.expected_profit or 0 for r in records), 2
+            ),
+        }
+    except Exception as e:
+        return {'error': str(e), 'total': 0, 'days': days}
+
+
 def get_full_dashboard() -> dict:
     """Combined dashboard for the analytics page."""
     return {

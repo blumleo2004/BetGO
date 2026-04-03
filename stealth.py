@@ -117,3 +117,72 @@ def should_place_mug_bet(account_dict: dict, arb_bets_since_last_mug: int = 0) -
     if account_dict.get('bets_placed_total', 0) == 0:
         return True
     return arb_bets_since_last_mug >= 5
+
+
+# ─── Kelly Criterion Stake Sizing ─────────────────────────────────────────────
+
+def kelly_stake(bankroll: float, odds: float, prob_estimate: float,
+                fraction: float = 0.25) -> float:
+    """
+    Fractional Kelly criterion stake.
+
+    For arb betting prob_estimate is always 1.0 (guaranteed profit).
+    fraction=0.25 = quarter-Kelly (standard conservative setting).
+    Returns 0.0 if Kelly formula yields a non-positive stake.
+
+    Formula: f* = (b*p - q) / b  where b = odds-1, p = prob_win, q = 1-p
+    Fractional: stake = bankroll * fraction * f*
+    """
+    if odds <= 1.0 or bankroll <= 0:
+        return 0.0
+    b = odds - 1.0
+    p = prob_estimate
+    q = 1.0 - p
+    kelly_fraction = (b * p - q) / b
+    if kelly_fraction <= 0:
+        return 0.0
+    return bankroll * fraction * kelly_fraction
+
+
+def kelly_investment(bankroll: float, arb_result: dict,
+                     fraction: float = 0.25) -> float:
+    """
+    Optimal total investment for an arb opportunity using fractional Kelly.
+
+    Uses the ROI as the guaranteed edge.  Since arb is risk-free, we treat
+    the entire arb as a single bet: odds = 1 + roi/100, prob = 1.0.
+    Caps at 5% of bankroll to limit exposure.
+    """
+    roi = arb_result.get('roi', 0)
+    if roi <= 0 or bankroll <= 0:
+        return 0.0
+    # Effective decimal odds of the guaranteed return
+    effective_odds = 1.0 + roi / 100.0
+    raw = kelly_stake(bankroll, effective_odds, 1.0, fraction)
+    max_allowed = bankroll * 0.05
+    return round(min(raw, max_allowed), 2)
+
+
+def get_recommended_investment(bankroll: float, roi: float,
+                                base_investment: float = 500.0) -> float:
+    """
+    Returns a recommended total investment based on ROI tier.
+
+    ROI < 1%   → 60% of base_investment  (thin margin, stay small)
+    ROI 1-2%   → base_investment          (sweet spot)
+    ROI 2-4%   → 120% of base_investment  (good edge, size up)
+    ROI > 4%   → 80% of base_investment   (suspicious, scale back)
+
+    Hard cap: never exceeds 10% of bankroll.
+    """
+    if roi < 1.0:
+        investment = base_investment * 0.60
+    elif roi < 2.0:
+        investment = base_investment
+    elif roi <= 4.0:
+        investment = base_investment * 1.20
+    else:
+        investment = base_investment * 0.80
+
+    max_allowed = bankroll * 0.10
+    return round(min(investment, max_allowed), 2)
