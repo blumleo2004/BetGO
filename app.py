@@ -10,6 +10,10 @@ import config
 import simulation
 import threading
 import uuid
+import logging
+import traceback
+from collections import deque
+from datetime import datetime
 
 
 from auth import auth_bp, init_oauth
@@ -18,6 +22,39 @@ from flask_login import LoginManager, current_user
 
 app = Flask(__name__)
 CORS(app)
+
+# ─── Debug Logging ────────────────────────────────────────────────────────────
+# Ring buffer for recent logs (accessible via /api/debug)
+_debug_log = deque(maxlen=200)
+
+def _log(level, msg, **extra):
+    entry = {
+        'ts': datetime.utcnow().isoformat(),
+        'level': level,
+        'msg': msg,
+        **extra
+    }
+    _debug_log.append(entry)
+    # Also print (safe for Windows cp1252)
+    safe = msg.encode('ascii', 'replace').decode()
+    print(f'[{level}] {safe}')
+
+@app.before_request
+def _log_request():
+    _log('REQ', f'{request.method} {request.path}', args=dict(request.args))
+
+@app.after_request
+def _log_response(response):
+    if response.status_code >= 400:
+        body = response.get_data(as_text=True)[:500]
+        _log('ERR', f'{request.method} {request.path} -> {response.status_code}', body=body)
+    return response
+
+@app.errorhandler(Exception)
+def _handle_error(e):
+    tb = traceback.format_exc()
+    _log('CRASH', f'{request.method} {request.path}: {e}', traceback=tb)
+    return jsonify({'error': str(e), 'traceback': tb}), 500
 
 # Initialize Extensions
 app.config.from_object('config') # Load config from config.py
@@ -425,27 +462,273 @@ def scanner_discord_test():
     success = auto_scanner.test_discord()
     return jsonify({'success': success})
 
+
+# ============ ACCOUNT MANAGER ENDPOINTS ============
+
+@app.route('/api/accounts', methods=['GET'])
+def list_accounts():
+    import account_manager
+    status = request.args.get('status')
+    bookmaker = request.args.get('bookmaker')
+    return jsonify(account_manager.get_accounts(status_filter=status, bookmaker_filter=bookmaker))
+
+
+@app.route('/api/accounts', methods=['POST'])
+def create_account():
+    import account_manager
+    data = request.get_json() or {}
+    bookmaker_key = data.get('bookmaker')
+    if not bookmaker_key:
+        return jsonify({'error': 'bookmaker field required'}), 400
+    result = account_manager.add_account(
+        bookmaker_key=bookmaker_key,
+        label=data.get('label'),
+        initial_balance=float(data.get('initial_balance', 0)),
+        username=data.get('username'),
+        max_daily_bets=int(data.get('max_daily_bets', 5)),
+        max_weekly_bets=int(data.get('max_weekly_bets', 20)),
+        min_stake=float(data.get('min_stake', 5.0)),
+        max_stake=float(data.get('max_stake', 100.0)),
+        notes=data.get('notes'),
+    )
+    return jsonify(result), 201
+
+
+@app.route('/api/accounts/<int:account_id>', methods=['GET'])
+def get_account_endpoint(account_id):
+    import account_manager
+    account = account_manager.get_account(account_id)
+    if not account:
+        return jsonify({'error': 'Not found'}), 404
+    return jsonify(account)
+
+
+@app.route('/api/accounts/<int:account_id>', methods=['PATCH'])
+def update_account_endpoint(account_id):
+    import account_manager
+    data = request.get_json() or {}
+    if 'status' in data:
+        result = account_manager.set_status(account_id, data['status'], data.get('notes'))
+        if not result:
+            return jsonify({'error': 'Invalid status or account not found'}), 400
+        return jsonify(result)
+    if 'current_balance' in data:
+        result = account_manager.update_balance(account_id, float(data['current_balance']), data.get('notes'))
+        if not result:
+            return jsonify({'error': 'Account not found'}), 404
+        return jsonify(result)
+    result = account_manager.update_account(account_id, **data)
+    if not result:
+        return jsonify({'error': 'Account not found'}), 404
+    return jsonify(result)
+
+
+@app.route('/api/accounts/<int:account_id>', methods=['DELETE'])
+def delete_account_endpoint(account_id):
+    import account_manager
+    if account_manager.delete_account(account_id):
+        return jsonify({'success': True})
+    return jsonify({'error': 'Not found'}), 404
+
+
+@app.route('/api/accounts/<int:account_id>/activity')
+def account_activity(account_id):
+    import account_manager
+    limit = request.args.get('limit', 50, type=int)
+    return jsonify(account_manager.get_account_activity(account_id, limit))
+
+
+@app.route('/api/accounts/<int:account_id>/ban-risk')
+def account_ban_risk(account_id):
+    import account_manager
+    return jsonify(account_manager.get_ban_risk_score(account_id))
+
+
+@app.route('/api/accounts/<int:account_id>/mug-suggestion')
+def account_mug_suggestion(account_id):
+    import account_manager
+    import mug_bet_advisor
+    account = account_manager.get_account(account_id)
+    if not account:
+        return jsonify({'error': 'Not found'}), 404
+    arb_count = mug_bet_advisor.get_arb_count_since_last_mug(account_id)
+    return jsonify(mug_bet_advisor.get_mug_suggestion(account, arb_count))
+
+
+@app.route('/api/accounts/<int:account_id>/mug-record', methods=['POST'])
+def record_mug_bet_endpoint(account_id):
+    import mug_bet_advisor
+    data = request.get_json() or {}
+    stake = float(data.get('stake', 0))
+    if stake <= 0:
+        return jsonify({'error': 'stake required'}), 400
+    return jsonify(mug_bet_advisor.record_mug_bet(account_id, stake, data.get('notes')))
+
+
+@app.route('/api/accounts/bookmaker/<bookmaker_key>')
+def accounts_for_bookmaker(bookmaker_key):
+    import account_manager
+    return jsonify(account_manager.get_usable_accounts_for_bookmaker(bookmaker_key))
+
+
+@app.route('/api/accounts/reset-daily', methods=['POST'])
+def reset_daily_counters():
+    import account_manager
+    account_manager.reset_daily_counters()
+    return jsonify({'success': True, 'message': 'Daily counters reset'})
+
+
+# ============ STEALTH ENDPOINTS ============
+
+@app.route('/api/stealth/round-stakes')
+def preview_rounded_stakes():
+    """Preview how a stake amount would be rounded"""
+    import stealth
+    raw = request.args.get('amount', type=float)
+    if raw is None:
+        return jsonify({'error': 'amount param required'}), 400
+    return jsonify({'raw': raw, 'rounded': stealth.round_stake_natural(raw)})
+
+
+@app.route('/api/stealth/timing')
+def preview_leg_timing():
+    """Preview timing delays for N legs"""
+    import stealth
+    legs = request.args.get('legs', 2, type=int)
+    return jsonify({'legs': legs, 'delay_seconds': stealth.get_leg_placement_delays(legs)})
+
+
+# ============ WM 2026 ENDPOINTS ============
+
+@app.route('/api/wm2026/status')
+def wm2026_status():
+    import tournament_filter
+    return jsonify(tournament_filter.get_status())
+
+
+@app.route('/api/wm2026/scan')
+def wm2026_scan():
+    import tournament_filter
+    wm_sport = config.WM2026['sport_key']
+    min_roi = float(request.args.get('min_roi', config.WM2026['min_roi_wm']))
+    investment = float(request.args.get('investment', config.DEFAULT_INVESTMENT))
+    opportunities = engine.scan_for_arbitrage(
+        sports=[wm_sport], markets='h2h', min_roi=min_roi, investment=investment,
+    )
+    return jsonify({
+        'opportunities': opportunities,
+        'count': len(opportunities),
+        'wm_phase': tournament_filter.get_wm2026_phase(),
+        'api_usage': engine.get_api_usage(),
+    })
+
+
+@app.route('/api/quality/config', methods=['GET', 'POST'])
+def quality_config():
+    """Get or update quality filter thresholds at runtime"""
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        allowed = {'max_roi', 'min_bookmakers_in_market', 'max_odds_per_leg',
+                   'min_stake', 'require_all_accounts_available'}
+        for k, v in data.items():
+            if k in allowed:
+                config.QUALITY_CONFIG[k] = v
+        return jsonify({'success': True, 'config': config.QUALITY_CONFIG})
+    return jsonify(config.QUALITY_CONFIG)
+
+
+# ============ ANALYTICS ENDPOINTS ============
+
+@app.route('/api/analytics/dashboard')
+def analytics_dashboard():
+    import analytics
+    return jsonify(analytics.get_full_dashboard())
+
+
+@app.route('/api/analytics/pnl/bookmaker')
+def analytics_pnl_bookmaker():
+    import analytics
+    days = request.args.get('days', 30, type=int)
+    return jsonify(analytics.get_pnl_by_bookmaker(days))
+
+
+@app.route('/api/analytics/pnl/timeline')
+def analytics_pnl_timeline():
+    import analytics
+    days = request.args.get('days', 30, type=int)
+    granularity = request.args.get('granularity', 'day')
+    return jsonify(analytics.get_pnl_timeline(days, granularity))
+
+
+@app.route('/api/analytics/wm2026-readiness')
+def analytics_wm2026_readiness():
+    import analytics
+    return jsonify(analytics.get_wm2026_readiness_report())
+
+
+@app.route('/accounts')
+def accounts_page():
+    """Account manager dashboard"""
+    return render_template('accounts.html')
+
+
+# ============ DEBUG ENDPOINTS ============
+
+@app.route('/api/debug')
+def debug_logs():
+    """Recent server logs — use this to diagnose issues remotely"""
+    level = request.args.get('level')  # filter: ERR, CRASH, REQ
+    limit = request.args.get('limit', 50, type=int)
+    logs = list(_debug_log)
+    if level:
+        logs = [l for l in logs if l['level'] == level.upper()]
+    return jsonify(logs[-limit:])
+
+
+@app.route('/api/debug/js-error', methods=['POST'])
+def js_error():
+    """Receive JavaScript errors from the browser"""
+    data = request.get_json() or {}
+    _log('JS', data.get('message', 'unknown'), source=data.get('source'), line=data.get('line'), stack=data.get('stack'))
+    return jsonify({'ok': True})
+
+
+@app.route('/api/debug/health')
+def health_check():
+    """Quick health check of all subsystems"""
+    from models import BookmakerAccount, ArbitrageRecord
+    import tournament_filter
+    checks = {}
+    try:
+        checks['db'] = {'ok': True, 'accounts': BookmakerAccount.query.count(), 'arbs': ArbitrageRecord.query.count()}
+    except Exception as e:
+        checks['db'] = {'ok': False, 'error': str(e)}
+    try:
+        checks['wm2026'] = tournament_filter.get_status()
+    except Exception as e:
+        checks['wm2026'] = {'ok': False, 'error': str(e)}
+    checks['recent_errors'] = [l for l in list(_debug_log)[-20:] if l['level'] in ('ERR', 'CRASH', 'JS')]
+    return jsonify(checks)
+
+
 if __name__ == '__main__':
-    print("🚀 BETGO Dashboard starting...")
-    print("📊 Open http://localhost:5000 in your browser")
-    print("🎮 Simulation: http://localhost:5000/simulation")
-    
-    # Show smart scheduling status
+    print("BETGO Dashboard starting...")
+    print("Open http://localhost:5000 in your browser")
+    print("Simulation: http://localhost:5000/simulation")
+    print("Accounts: http://localhost:5000/accounts")
+    print("Debug: http://localhost:5000/api/debug/health")
+
     import api_optimizer
-    status = api_optimizer.scheduler.get_status()
-    print(f"⏰ {status['status']}")
-    
-    # Show API keys count
+    try:
+        status = api_optimizer.scheduler.get_status()
+        print(f"Scheduler: {str(status.get('status','')).encode('ascii','replace').decode()}")
+    except Exception:
+        pass
     keys_count = len(api_optimizer.key_manager.keys)
-    print(f"🔑 The Odds API: {keys_count} keys loaded")
-    
-    # Check Discord
+    print(f"The Odds API: {keys_count} keys loaded")
+
     import auto_scanner
-    if auto_scanner.scanner.notifier.webhook_url:
-        print("💬 Discord: Connected")
-    else:
-        print("💬 Discord: Not configured (POST /api/discord/webhook)")
-    
-    print("\n📡 To start auto-scanning: POST /api/scanner/start")
-    
+    print(f"Discord: {'Connected' if auto_scanner.scanner.notifier.webhook_url else 'Not configured'}")
+    print("To start auto-scanning: POST /api/scanner/start")
+
     app.run(debug=True, port=5000)

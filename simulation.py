@@ -8,6 +8,14 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+# Optional SQLAlchemy dual-write (won't break if models not available)
+try:
+    from models import db, ArbitrageRecord, ArbitrageLeg
+    from datetime import datetime as _dt
+    _HAS_DB = True
+except ImportError:
+    _HAS_DB = False
+
 # Database file path
 DB_PATH = Path(__file__).parent / 'simulation_data.json'
 

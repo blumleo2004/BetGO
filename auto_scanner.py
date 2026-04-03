@@ -5,14 +5,16 @@ Runs in background, scans for arbitrage, auto-places simulation bets, and notifi
 
 import time
 import json
+import hashlib
 import requests
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 # Import our modules
 import arb_engine
 import simulation
+import tournament_filter
 
 
 class DiscordNotifier:
@@ -99,24 +101,54 @@ class DiscordNotifier:
         )
 
 
+class OpportunityDeduplicator:
+    """Prevent the same opportunity from triggering multiple Discord pings."""
+
+    def __init__(self, window_hours: int = 2):
+        self.window_hours = window_hours
+        self._seen: dict = {}  # hash -> datetime
+
+    def _hash(self, opp: dict) -> str:
+        key = (
+            opp.get('home_team', ''),
+            opp.get('away_team', ''),
+            opp.get('market', ''),
+            tuple(sorted(opp.get('stakes', {}).keys())),
+        )
+        return hashlib.md5(str(key).encode()).hexdigest()
+
+    def is_new(self, opp: dict) -> bool:
+        """Returns True if this opportunity hasn't been seen in the dedup window."""
+        h = self._hash(opp)
+        cutoff = datetime.now() - timedelta(hours=self.window_hours)
+        # Prune old entries
+        self._seen = {k: v for k, v in self._seen.items() if v > cutoff}
+        if h in self._seen:
+            return False
+        self._seen[h] = datetime.now()
+        return True
+
+
 class AutoScanner:
     """Automatic arbitrage scanner with simulation betting"""
-    
+
     def __init__(self):
         self.engine = arb_engine.ArbEngine()
         self.notifier = DiscordNotifier()
+        self.deduplicator = OpportunityDeduplicator(window_hours=2)
         self.running = False
-        
+
         # Smart scheduling - only scan during peak betting hours
         self.peak_start = 17  # 17:00 - Games starting
         self.peak_end = 22    # 22:00 - Last games
         self.peak_interval = 1800  # 30 minutes - ~10 scans/day = 120 credits
         self.off_peak_interval = 3600  # 1 hour outside peak (or skip)
         self.skip_off_peak = True  # Don't scan at all outside peak hours
-        
+
         self.min_roi = 0.5  # Minimum ROI to place bet
         self.max_investment = 100  # Max investment per opportunity
         self.auto_bet = True  # Automatically place simulation bets
+        self.min_quality_for_discord = 50  # Only ping Discord for quality_score >= this
         self.thread = None
         self.last_scan = None
         self.next_scan = None
@@ -125,7 +157,9 @@ class AutoScanner:
             'opportunities_found': 0,
             'bets_placed': 0,
             'total_invested': 0,
-            'credits_used': 0
+            'credits_used': 0,
+            'discord_pings': 0,
+            'dedup_skipped': 0,
         }
     
     def is_peak_hours(self) -> bool:
@@ -174,6 +208,8 @@ class AutoScanner:
             self.notifier.set_webhook(kwargs['webhook_url'])
         if 'skip_off_peak' in kwargs:
             self.skip_off_peak = kwargs['skip_off_peak']
+        if 'min_quality_for_discord' in kwargs:
+            self.min_quality_for_discord = kwargs['min_quality_for_discord']
     
     def scan_once(self) -> dict:
         """Run a single scan"""
@@ -187,30 +223,49 @@ class AutoScanner:
         
         try:
             # Run the scan
-            opportunities = self.engine.scan_all_sports()
+            opportunities = self.engine.scan_for_arbitrage(
+                min_roi=self.min_roi,
+                investment=self.max_investment
+            )
             results['opportunities'] = opportunities
             self.stats['scans'] += 1
             self.stats['opportunities_found'] += len(opportunities)
             
             print(f"   Found {len(opportunities)} arbitrage opportunities")
             
+            # Apply WM 2026 mode if active
+            if tournament_filter.is_wm2026_active():
+                wm_conf = tournament_filter.get_wm2026_scanner_config()
+                effective_min_roi = wm_conf.get('min_roi', self.min_roi)
+                print(f"   🏆 WM 2026 mode: {tournament_filter.get_wm2026_phase()}")
+            else:
+                effective_min_roi = self.min_roi
+
             # Auto-place simulation bets
             if self.auto_bet and opportunities:
                 for opp in opportunities:
-                    if opp.get('roi', 0) >= self.min_roi:
-                        bet_result = simulation.place_virtual_bet(
-                            opp, 
-                            investment=min(self.max_investment, 100)
-                        )
-                        
-                        if bet_result.get('success'):
-                            results['bets_placed'].append(bet_result)
-                            self.stats['bets_placed'] += 1
-                            self.stats['total_invested'] += bet_result.get('total_investment', 0)
-                            
-                            # Send Discord notification
+                    if opp.get('roi', 0) < effective_min_roi:
+                        continue
+
+                    bet_result = simulation.place_virtual_bet(
+                        opp,
+                        investment=min(self.max_investment, 100)
+                    )
+
+                    if bet_result.get('success'):
+                        results['bets_placed'].append(bet_result)
+                        self.stats['bets_placed'] += 1
+                        self.stats['total_invested'] += bet_result.get('total_investment', 0)
+
+                        # Discord: only for high-quality new opportunities
+                        quality = opp.get('quality_score', 0)
+                        if quality >= self.min_quality_for_discord and self.deduplicator.is_new(opp):
                             self.notifier.notify_bet_placed(bet_result)
-                            print(f"   ✅ Placed bet: {opp.get('home_team')} vs {opp.get('away_team')} ({opp.get('roi'):.2f}% ROI)")
+                            self.stats['discord_pings'] += 1
+                            print(f"   ✅ Placed bet: {opp.get('home_team')} vs {opp.get('away_team')} "
+                                  f"({opp.get('roi'):.2f}% ROI, quality {quality:.0f})")
+                        else:
+                            self.stats['dedup_skipped'] += 1
             
             self.last_scan = datetime.now()
             

@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from typing import Optional
 import config
 import api_optimizer
+import stealth
 
 class ArbEngine:
     def __init__(self):
@@ -139,11 +140,17 @@ class ArbEngine:
                 'potential_return': round(stake * odds_data[outcome]['price'], 2)
             }
         
+        # Add rounded stakes (natural-looking amounts for stealth)
+        for outcome in stakes:
+            raw = stakes[outcome]['stake']
+            rounded = stealth.round_stake_natural(raw)
+            stakes[outcome]['rounded_stake'] = rounded
+
         # All returns should be equal (guaranteed profit)
         total_return = list(stakes.values())[0]['potential_return']
         profit = total_return - total_investment
         roi = (profit / total_investment) * 100
-        
+
         return {
             'stakes': stakes,
             'profit': round(profit, 2),
@@ -273,7 +280,100 @@ class ArbEngine:
         
         # Sort by ROI descending
         opportunities.sort(key=lambda x: x['roi'], reverse=True)
+
+        # Add quality scores (does not re-fetch — post-processing only)
+        opportunities = self.quality_filter(opportunities)
+
         return opportunities
+
+    def quality_filter(self, opportunities: list, cfg: dict = None) -> list:
+        """
+        Post-process scan results: apply hard filters and add quality_score.
+        Operates on already-fetched data — safe to call without extra API calls.
+        Thresholds come from config.QUALITY_CONFIG (editable at runtime).
+        """
+        if cfg is None:
+            cfg = config.QUALITY_CONFIG
+
+        filtered = []
+        for opp in opportunities:
+            roi = opp.get('roi', 0)
+            stakes = opp.get('stakes', {})
+
+            # Hard filter: ROI too high → likely pricing error, will get voided
+            if roi > cfg.get('max_roi', 8.0):
+                continue
+
+            # Hard filter: any leg has very long odds
+            if any(s.get('odds', 0) > cfg.get('max_odds_per_leg', 15.0)
+                   for s in stakes.values()):
+                continue
+
+            # Hard filter: any leg stake below minimum
+            if any((s.get('stake') or 0) < cfg.get('min_stake', 5.0)
+                   for s in stakes.values()):
+                continue
+
+            opp['quality_score'] = self._quality_score(opp)
+            filtered.append(opp)
+
+        return filtered
+
+    def _quality_score(self, opp: dict) -> float:
+        """Calculate quality score 0-100. Higher = better opportunity."""
+        score = 0.0
+        stakes = opp.get('stakes', {})
+
+        # Clean 2-way arb (exactly 2 bookmakers) → +30
+        if len(stakes) == 2:
+            score += 30
+
+        # ROI in sweet spot 0.5–3% → +20, 3–5% → +10
+        roi = opp.get('roi', 0)
+        if 0.5 <= roi <= 3.0:
+            score += 20
+        elif 3.0 < roi <= 5.0:
+            score += 10
+
+        # H2H (most liquid market) → +20
+        if opp.get('market') == 'h2h':
+            score += 20
+
+        # Commence time > 2h away (enough time to place both legs) → +15
+        commence = opp.get('commence_time', '')
+        if commence:
+            try:
+                game_time = datetime.fromisoformat(commence.replace('Z', '+00:00'))
+                now = datetime.now(timezone.utc)
+                hours_away = (game_time - now).total_seconds() / 3600
+                if hours_away > 2:
+                    score += 15
+                elif hours_away > 0.5:
+                    score += 7
+            except Exception:
+                pass
+
+        return min(score, 100.0)
+
+    def get_placement_schedule(self, arb_result: dict) -> list:
+        """
+        Returns each leg with a suggested placement delay.
+        Use the delay offsets to stagger real bet placement.
+        """
+        stakes = arb_result.get('stakes', {})
+        delays = stealth.get_leg_placement_delays(len(stakes))
+        schedule = []
+        for (outcome, data), delay in zip(stakes.items(), delays):
+            schedule.append({
+                'outcome': outcome,
+                'bookmaker': data.get('book'),
+                'bookmaker_key': data.get('book_key'),
+                'odds': data.get('odds'),
+                'stake': data.get('stake'),
+                'rounded_stake': data.get('rounded_stake'),
+                'delay_seconds': delay,
+            })
+        return schedule
 
 
 # For CLI usage

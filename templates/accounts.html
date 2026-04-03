@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BETGO — Account Manager</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; min-height: 100vh; }
+        nav { background: #1a1d27; padding: 12px 24px; display: flex; align-items: center; gap: 20px; border-bottom: 1px solid #2a2d3a; }
+        nav a { color: #aaa; text-decoration: none; font-size: 14px; }
+        nav a:hover, nav a.active { color: #fff; }
+        nav .logo { font-weight: 700; font-size: 18px; color: #fff; margin-right: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        h1 { font-size: 24px; margin-bottom: 8px; }
+        .subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
+
+        /* WM Banner */
+        #wm-banner { background: linear-gradient(135deg, #1a3a6b, #2d6a4f); border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; display: none; }
+        #wm-banner h3 { color: #ffd700; margin-bottom: 4px; }
+        #wm-banner p { color: #ccc; font-size: 13px; }
+
+        /* Summary row */
+        .summary-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 28px; }
+        .stat-card { background: #1a1d27; border-radius: 10px; padding: 16px; text-align: center; border: 1px solid #2a2d3a; }
+        .stat-card .value { font-size: 28px; font-weight: 700; }
+        .stat-card .label { font-size: 12px; color: #888; margin-top: 4px; }
+        .stat-card.green .value { color: #2ecc71; }
+        .stat-card.yellow .value { color: #f39c12; }
+        .stat-card.red .value { color: #e74c3c; }
+
+        /* Add account form */
+        .add-form { background: #1a1d27; border-radius: 10px; padding: 20px; margin-bottom: 28px; border: 1px solid #2a2d3a; }
+        .add-form h2 { font-size: 16px; margin-bottom: 16px; color: #ccc; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 12px; }
+        .form-row input, .form-row select { background: #0f1117; border: 1px solid #3a3d4a; color: #e0e0e0; border-radius: 6px; padding: 8px 12px; font-size: 13px; width: 100%; }
+        .form-row input::placeholder { color: #555; }
+        .btn { background: #3498db; color: #fff; border: none; border-radius: 6px; padding: 9px 18px; cursor: pointer; font-size: 13px; font-weight: 600; }
+        .btn:hover { background: #2980b9; }
+        .btn.danger { background: #c0392b; }
+        .btn.danger:hover { background: #a93226; }
+        .btn.small { padding: 5px 12px; font-size: 12px; }
+
+        /* Account cards */
+        .accounts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+        .account-card { background: #1a1d27; border-radius: 10px; padding: 18px; border: 1px solid #2a2d3a; position: relative; }
+        .account-card .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .account-card .name { font-weight: 600; font-size: 16px; }
+        .account-card .bookmaker { font-size: 12px; color: #888; margin-top: 2px; }
+        .risk-badge { border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700; }
+        .risk-green { background: #1a3a2a; color: #2ecc71; }
+        .risk-yellow { background: #3a2e1a; color: #f39c12; }
+        .risk-orange { background: #3a2a1a; color: #e67e22; }
+        .risk-red { background: #3a1a1a; color: #e74c3c; }
+        .status-badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
+        .status-active { background: #1a3a2a; color: #2ecc71; }
+        .status-new { background: #1a2a3a; color: #3498db; }
+        .status-restricted { background: #3a2e1a; color: #f39c12; }
+        .status-gubbed { background: #3a1a1a; color: #e74c3c; }
+        .status-dormant { background: #2a2a2a; color: #888; }
+
+        .card-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; font-size: 13px; }
+        .card-stat { background: #0f1117; border-radius: 6px; padding: 8px; }
+        .card-stat .cs-label { font-size: 11px; color: #666; margin-bottom: 2px; }
+        .card-stat .cs-value { font-weight: 600; }
+
+        .progress-bar { background: #0f1117; border-radius: 4px; height: 6px; overflow: hidden; margin-top: 6px; }
+        .progress-fill { height: 100%; border-radius: 4px; }
+        .progress-fill.green { background: #2ecc71; }
+        .progress-fill.yellow { background: #f39c12; }
+        .progress-fill.orange { background: #e67e22; }
+        .progress-fill.red { background: #e74c3c; }
+
+        .card-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+        /* Mug suggestion */
+        .mug-suggestion { background: #1a1a2a; border: 1px solid #3a3a5a; border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 13px; display: none; }
+        .mug-suggestion .urgency-required { color: #e74c3c; font-weight: 700; }
+        .mug-suggestion .urgency-urgent { color: #e67e22; font-weight: 700; }
+        .mug-suggestion .urgency-recommended { color: #f39c12; }
+        .mug-suggestion .urgency-optional { color: #888; }
+
+        #loading { text-align: center; color: #888; padding: 40px; }
+        .empty { text-align: center; color: #888; padding: 40px; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <span class="logo">BETGO</span>
+    <a href="/">Dashboard</a>
+    <a href="/simulation">Simulation</a>
+    <a href="/accounts" class="active">Konten</a>
+    <a href="/settings">Einstellungen</a>
+</nav>
+
+<div class="container">
+    <h1>Account Manager</h1>
+    <p class="subtitle">Buchmacher-Konten verwalten, Ban-Risiko überwachen, Mug-Bets planen</p>
+
+    <div id="wm-banner">
+        <h3>🏆 WM 2026 — <span id="wm-phase"></span></h3>
+        <p id="wm-msg"></p>
+    </div>
+
+    <div class="summary-row" id="summary-row">
+        <div class="stat-card green"><div class="value" id="s-active">–</div><div class="label">Aktiv</div></div>
+        <div class="stat-card"><div class="value" id="s-total">–</div><div class="label">Gesamt</div></div>
+        <div class="stat-card yellow"><div class="value" id="s-restricted">–</div><div class="label">Eingeschränkt</div></div>
+        <div class="stat-card red"><div class="value" id="s-gubbed">–</div><div class="label">Gubbed</div></div>
+        <div class="stat-card"><div class="value" id="s-balance">–</div><div class="label">Gesamtguthaben</div></div>
+        <div class="stat-card red"><div class="value" id="s-risk">–</div><div class="label">Hohes Risiko</div></div>
+    </div>
+
+    <div class="add-form">
+        <h2>+ Neues Konto hinzufügen</h2>
+        <div class="form-row">
+            <select id="new-bookmaker">
+                <option value="">Buchmacher wählen…</option>
+            </select>
+            <input type="text" id="new-label" placeholder="Bezeichnung (z.B. Mein Bet365)">
+            <input type="text" id="new-username" placeholder="Benutzername">
+            <input type="number" id="new-balance" placeholder="Startguthaben €" step="10" min="0">
+        </div>
+        <div class="form-row">
+            <input type="number" id="new-max-daily" placeholder="Max Tipps/Tag" value="5" min="1">
+            <input type="number" id="new-max-weekly" placeholder="Max Tipps/Woche" value="20" min="1">
+            <input type="number" id="new-min-stake" placeholder="Min Einsatz €" value="5" step="5">
+            <input type="number" id="new-max-stake" placeholder="Max Einsatz €" value="100" step="10">
+        </div>
+        <button class="btn" onclick="addAccount()">Konto hinzufügen</button>
+    </div>
+
+    <div id="loading">Konten werden geladen…</div>
+    <div class="accounts-grid" id="accounts-grid"></div>
+    <div class="empty" id="empty-msg" style="display:none">Noch keine Konten angelegt.</div>
+</div>
+
+<script>
+// ── JS Error Reporting: sends all errors to /api/debug/js-error ──
+window.onerror = function(msg, source, line, col, err) {
+    console.error('JS Error:', msg, source, line);
+    fetch('/api/debug/js-error', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({message: msg, source, line, stack: err?.stack})}).catch(()=>{});
+};
+window.addEventListener('unhandledrejection', e => {
+    console.error('Promise error:', e.reason);
+    fetch('/api/debug/js-error', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({message: String(e.reason), source: 'promise', stack: e.reason?.stack})}).catch(()=>{});
+});
+
+const BOOKMAKERS = {};
+
+async function init() {
+    console.log('[BetGO] init() starting...');
+    // Load bookmaker list
+    const cfg = await fetch('/api/config').then(r => r.json()).catch(e => { console.error('config fetch failed:', e); return null; });
+    if (!cfg || !cfg.bookmakers) { console.error('No config/bookmakers data'); document.getElementById('loading').textContent = 'Fehler: Config konnte nicht geladen werden'; return; }
+    console.log('[BetGO] Config loaded, bookmakers:', Object.keys(cfg.bookmakers).length);
+    const sel = document.getElementById('new-bookmaker');
+    Object.entries(cfg.bookmakers).forEach(([key, bm]) => {
+        BOOKMAKERS[key] = bm;
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = bm.name;
+        sel.appendChild(opt);
+    });
+
+    // Check WM status
+    const wm = await fetch('/api/wm2026/status').then(r => r.json());
+    if (wm.active || wm.days_until_start < 30) {
+        document.getElementById('wm-banner').style.display = 'block';
+        document.getElementById('wm-phase').textContent = wm.phase.replace('_', ' ');
+        document.getElementById('wm-msg').textContent = wm.message;
+    }
+
+    await loadAccounts();
+}
+
+async function loadAccounts() {
+    const [accounts, health] = await Promise.all([
+        fetch('/api/accounts').then(r => r.json()),
+        fetch('/api/analytics/wm2026-readiness').then(r => r.json()).catch(() => null)
+    ]);
+
+    // Update summary
+    const active = accounts.filter(a => a.status === 'active').length;
+    const restricted = accounts.filter(a => a.status === 'restricted').length;
+    const gubbed = accounts.filter(a => a.status === 'gubbed').length;
+    const highRisk = accounts.filter(a => a.ban_risk && a.ban_risk.score > 50).length;
+    const totalBalance = accounts.reduce((s, a) => s + (a.current_balance || 0), 0);
+
+    document.getElementById('s-active').textContent = active;
+    document.getElementById('s-total').textContent = accounts.length;
+    document.getElementById('s-restricted').textContent = restricted;
+    document.getElementById('s-gubbed').textContent = gubbed;
+    document.getElementById('s-balance').textContent = '€' + totalBalance.toFixed(0);
+    document.getElementById('s-risk').textContent = highRisk;
+
+    document.getElementById('loading').style.display = 'none';
+
+    const grid = document.getElementById('accounts-grid');
+    grid.innerHTML = '';
+
+    if (!accounts.length) {
+        document.getElementById('empty-msg').style.display = 'block';
+        return;
+    }
+
+    accounts.forEach(acc => {
+        grid.appendChild(buildCard(acc));
+    });
+}
+
+function buildCard(acc) {
+    const risk = acc.ban_risk || {score: 0, level: 'green'};
+    const riskPct = Math.min(risk.score, 100);
+    const bmName = BOOKMAKERS[acc.bookmaker]?.name || acc.bookmaker;
+
+    const card = document.createElement('div');
+    card.className = 'account-card';
+    card.id = `card-${acc.id}`;
+
+    card.innerHTML = `
+        <div class="card-header">
+            <div>
+                <div class="name">${acc.user_label}</div>
+                <div class="bookmaker">${bmName} &nbsp;
+                    <span class="status-badge status-${acc.status}">${acc.status}</span>
+                </div>
+            </div>
+            <span class="risk-badge risk-${risk.level}" title="Ban-Risiko: ${riskPct}/100">${riskPct}/100</span>
+        </div>
+
+        <div class="card-stats">
+            <div class="card-stat">
+                <div class="cs-label">Guthaben</div>
+                <div class="cs-value">€${(acc.current_balance || 0).toFixed(2)}</div>
+            </div>
+            <div class="card-stat">
+                <div class="cs-label">Wetten gesamt</div>
+                <div class="cs-value">${acc.bets_placed_total}</div>
+            </div>
+            <div class="card-stat">
+                <div class="cs-label">Heute / Woche</div>
+                <div class="cs-value">${acc.daily_bet_count}/${acc.max_daily_bets} &nbsp; ${acc.weekly_bet_count}/${acc.max_weekly_bets}</div>
+            </div>
+            <div class="card-stat">
+                <div class="cs-label">Einsatz-Range</div>
+                <div class="cs-value">€${acc.min_stake}–€${acc.max_stake}</div>
+            </div>
+        </div>
+
+        <div style="font-size:12px;color:#666;margin-bottom:4px">Ban-Risiko</div>
+        <div class="progress-bar">
+            <div class="progress-fill ${risk.level}" style="width:${riskPct}%"></div>
+        </div>
+
+        <div class="mug-suggestion" id="mug-${acc.id}"></div>
+
+        <div class="card-actions">
+            <select id="status-sel-${acc.id}" style="background:#0f1117;border:1px solid #3a3d4a;color:#e0e0e0;border-radius:5px;padding:5px 8px;font-size:12px">
+                ${['new','active','restricted','gubbed','dormant'].map(s =>
+                    `<option value="${s}" ${s===acc.status?'selected':''}>${s}</option>`
+                ).join('')}
+            </select>
+            <button class="btn small" onclick="setStatus(${acc.id})">Status setzen</button>
+            <button class="btn small" onclick="showMugSuggestion(${acc.id})">Mug-Tipp</button>
+            <button class="btn small danger" onclick="deleteAccount(${acc.id})">Löschen</button>
+        </div>
+    `;
+    return card;
+}
+
+async function addAccount() {
+    console.log('[BetGO] addAccount() called');
+    const bookmaker = document.getElementById('new-bookmaker').value;
+    console.log('[BetGO] selected bookmaker:', bookmaker);
+    if (!bookmaker) { alert('Bitte Buchmacher wählen'); return; }
+    const data = {
+        bookmaker,
+        label: document.getElementById('new-label').value || undefined,
+        username: document.getElementById('new-username').value || undefined,
+        initial_balance: parseFloat(document.getElementById('new-balance').value) || 0,
+        max_daily_bets: parseInt(document.getElementById('new-max-daily').value) || 5,
+        max_weekly_bets: parseInt(document.getElementById('new-max-weekly').value) || 20,
+        min_stake: parseFloat(document.getElementById('new-min-stake').value) || 5,
+        max_stake: parseFloat(document.getElementById('new-max-stake').value) || 100,
+    };
+    const r = await fetch('/api/accounts', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
+    if (r.ok) { await loadAccounts(); }
+    else { alert('Fehler beim Erstellen'); }
+}
+
+async function setStatus(id) {
+    const status = document.getElementById(`status-sel-${id}`).value;
+    await fetch(`/api/accounts/${id}`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status})
+    });
+    await loadAccounts();
+}
+
+async function deleteAccount(id) {
+    if (!confirm('Konto wirklich löschen?')) return;
+    await fetch(`/api/accounts/${id}`, {method: 'DELETE'});
+    await loadAccounts();
+}
+
+async function showMugSuggestion(id) {
+    const div = document.getElementById(`mug-${id}`);
+    const data = await fetch(`/api/accounts/${id}/mug-suggestion`).then(r => r.json());
+    div.style.display = 'block';
+    div.innerHTML = `
+        <strong class="urgency-${data.urgency}">${data.urgency.toUpperCase()}</strong>
+        &nbsp;${data.reason}<br>
+        <span style="color:#ccc">Tipp: ${data.suggestion} — €${data.suggested_stake}</span><br>
+        <small style="color:#666">${data.note}</small>
+        <br><button class="btn small" style="margin-top:6px" onclick="recordMugBet(${id}, ${data.suggested_stake})">Als platziert markieren</button>
+    `;
+}
+
+async function recordMugBet(id, stake) {
+    await fetch(`/api/accounts/${id}/mug-record`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({stake})
+    });
+    document.getElementById(`mug-${id}`).innerHTML = '<span style="color:#2ecc71">✓ Mug-Tipp aufgezeichnet</span>';
+}
+
+init();
+</script>
+</body>
+</html>

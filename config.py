@@ -183,7 +183,29 @@ TIMEFRAMES = {
 }
 
 
-# API endpoints
+# ─── Quality Filter Config ───────────────────────────────────────────────────
+# All thresholds are editable here — quality_filter() in arb_engine reads this
+QUALITY_CONFIG = {
+    'max_roi': 8.0,               # Skip ROI > 8% (likely pricing errors, get voided)
+    'min_bookmakers_in_market': 2, # Need at least 2 bookmakers
+    'max_odds_per_leg': 15.0,     # Skip very long odds (niche markets, void risk)
+    'min_stake': 5.0,             # Skip legs requiring < €5 (micro-stakes get flagged)
+    'require_all_accounts_available': False,  # Set True to skip opps with missing accounts
+}
+
+# ─── WM 2026 (FIFA World Cup) ─────────────────────────────────────────────────
+WM2026 = {
+    'start_date': '2026-06-11',
+    'end_date': '2026-07-19',
+    'group_stage_end': '2026-06-26',
+    'round_of_32_start': '2026-06-27',
+    'knockout_start': '2026-07-01',
+    'sport_key': 'soccer_fifa_world_cup',
+    'priority_bookmakers': ['pinnacle', 'bet365', 'bwin', 'tipico_de', 'betano'],
+    'min_roi_wm': 0.3,            # Accept thinner margins during WC (more volume)
+}
+
+# ─── API endpoints ────────────────────────────────────────────────────────────
 API_BASE_URL = 'https://api.the-odds-api.com/v4'
 
 # Database Configuration
