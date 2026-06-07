@@ -37,23 +37,27 @@ class TelegramNotifier:
     def configured(self) -> bool:
         return bool(self.bot_token and self.chat_id)
 
-    def send(self, text: str) -> bool:
+    def send(self, text: str, reply_markup: dict = None) -> bool:
         if not self.configured:
             print("[Telegram] not configured — set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID in .env")
             return False
         try:
             url = self.API_URL.format(token=self.bot_token)
-            resp = requests.post(url, json={
+            payload = {
                 "chat_id": self.chat_id,
                 "text": text,
                 "parse_mode": "Markdown",
-            }, timeout=10)
+            }
+            if reply_markup:
+                payload["reply_markup"] = reply_markup
+            resp = requests.post(url, json=payload, timeout=10)
             return resp.ok
         except Exception as e:
             print(f"[Telegram] error: {e}")
             return False
 
     def notify_arb_found(self, opp: dict) -> bool:
+        import config as _cfg
         bets = opp.get('bets', [])
         delays = stealth.get_leg_placement_delays(len(bets))
 
@@ -62,17 +66,36 @@ class TelegramNotifier:
             f"*{opp.get('home_team', '?')} vs {opp.get('away_team', '?')}*",
             "",
         ]
+        buttons = []
         for i, bet in enumerate(bets):
-            rounded = stealth.round_stake_natural(bet.get('stake', 0))
+            rounded = stealth.round_stake_natural(
+                stealth.jitter_stake(bet.get('stake', 0))
+            )
             timing = "sofort" if delays[i] == 0 else f"+{delays[i]}s"
             lines.append(
-                f"Leg {i+1}: *{bet.get('bookmaker','?')}* | "
-                f"{bet.get('outcome','?')} @ {bet.get('odds',0):.2f} | "
+                f"Leg {i+1}: *{bet.get('bookmaker', '?')}* | "
+                f"{bet.get('outcome', '?')} @ {bet.get('odds', 0):.2f} | "
                 f"*€{rounded:.0f}* ({timing})"
             )
+            bm_key = bet.get('bookmaker_key') or bet.get('bookmaker', '').lower().replace(' ', '')
+            url = _cfg.BOOKMAKER_URLS.get(bm_key, _cfg.BOOKMAKER_URLS.get('bet365'))
+            buttons.append({"text": f"{bet.get('bookmaker', '?')} →", "url": url})
 
-        lines += ["", f"_BETGO WM 2026_"]
-        return self.send("\n".join(lines))
+        lines += ["", "_BETGO WM 2026_"]
+
+        keyboard = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
+        return self.send("\n".join(lines), reply_markup={"inline_keyboard": keyboard})
+
+    def notify_mug_bet(self, bookmaker_key: str, bookmaker_name: str) -> bool:
+        import config as _cfg
+        url = _cfg.BOOKMAKER_URLS.get(bookmaker_key, '')
+        text = (
+            f"*Tarnwette fällig!*\n"
+            f"*{bookmaker_name}*: Bet auf klaren Favoriten (Odds 1.40–1.70)\n\n"
+            f"_Nach 5 Arb-Wetten ohne Tarnwette — BETGO Stealth_"
+        )
+        markup = {"inline_keyboard": [[{"text": f"{bookmaker_name} →", "url": url}]]} if url else None
+        return self.send(text, reply_markup=markup)
 
     def notify_scan_summary(self, opportunities_found: int, bets_placed: int) -> bool:
         return self.send(
