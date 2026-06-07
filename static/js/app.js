@@ -30,9 +30,67 @@ async function init() {
     await loadConfig();
     populateFilters();
     setupEventListeners();
+    renderBookmakerGrid();
+    renderBookmakerModal();
 
     // Initial scan
     await scanForArbitrage();
+}
+
+function renderBookmakerGrid() {
+    const grid = document.getElementById('bookmakers-grid');
+    if (!grid || !config.bookmakers) return;
+
+    // Load real accounts from API
+    fetch('/api/accounts').then(r => r.json()).then(accounts => {
+        const myBooks = {};
+        accounts.forEach(a => { myBooks[a.bookmaker] = a; });
+
+        // Remove placeholder "Connect" card before adding real ones
+        const placeholder = grid.querySelector('.border-dashed');
+
+        // Build cards for accounts the user has
+        const cards = accounts.map(acc => {
+            const bm = config.bookmakers[acc.bookmaker] || {name: acc.bookmaker, color: '#888'};
+            const risk = acc.ban_risk || {score: 0, level: 'green'};
+            const riskColors = {green:'#22c55e', yellow:'#f59e0b', orange:'#f97316', red:'#ef4444'};
+            const color = riskColors[risk.level] || '#22c55e';
+            return `<div class="bg-card-light dark:bg-card-dark rounded-xl p-5 shadow-soft border border-gray-100 dark:border-gray-700">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <div class="font-bold text-gray-900 dark:text-white">${acc.user_label}</div>
+                        <div class="text-xs text-gray-500 mt-0.5">${bm.name}</div>
+                    </div>
+                    <span class="text-xs font-bold px-2 py-1 rounded-full" style="background:${color}22;color:${color}">
+                        Risk ${risk.score}/100
+                    </span>
+                </div>
+                <div class="text-2xl font-bold text-gray-900 dark:text-white mb-1">€${(acc.current_balance||0).toFixed(2)}</div>
+                <div class="text-xs text-gray-500">${acc.status} · ${acc.bets_placed_total} Wetten</div>
+                ${acc.bonus_balance > 0 ? `<div class="text-xs text-yellow-500 mt-1">Bonus: €${acc.bonus_balance.toFixed(2)}</div>` : ''}
+            </div>`;
+        }).join('');
+
+        if (placeholder) placeholder.insertAdjacentHTML('beforebegin', cards);
+
+        // Update header balance
+        const totalBal = accounts.reduce((s,a) => s + (a.current_balance||0), 0);
+        const balEl = document.getElementById('total-balance');
+        if (balEl) balEl.textContent = '€' + totalBal.toFixed(2);
+        const activeEl = document.getElementById('active-bookmakers');
+        if (activeEl) activeEl.textContent = accounts.filter(a => a.status === 'active').length;
+    }).catch(() => {});
+}
+
+function renderBookmakerModal() {
+    const links = document.getElementById('bookmaker-links');
+    if (!links || !config.bookmakers) return;
+    links.innerHTML = `
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">Konten direkt auf <a href="/accounts" class="text-primary font-semibold hover:underline">localhost:5000/accounts</a> anlegen.</p>
+        <a href="/accounts" class="block w-full text-center bg-primary text-white rounded-lg py-2.5 font-semibold hover:bg-primary-dark transition-colors">
+            Zum Account Manager
+        </a>
+    `;
 }
 
 async function loadConfig() {
@@ -165,6 +223,9 @@ async function scanForArbitrage() {
             }
 
             const statusResponse = await fetch(`/api/scan/status/${jobId}`);
+            if (statusResponse.status === 404) {
+                throw new Error('Scan job lost (server restarted) — bitte neu scannen');
+            }
             const statusData = await statusResponse.json();
 
             if (statusData.status === 'done') {
@@ -195,7 +256,14 @@ async function scanForArbitrage() {
             }
         };
 
-        poll();
+        poll().catch(error => {
+            console.error('Scan poll failed:', error);
+            showToast('Scan fehlgeschlagen: ' + error.message, 'error');
+            isScanning = false;
+            scanBtn.disabled = false;
+            scanBtn.innerHTML = originalBtnContent;
+            showLoading(false);
+        });
 
     } catch (error) {
         console.error('Scan failed:', error);
@@ -301,17 +369,17 @@ function getSportEmoji(sport) {
 }
 
 function updateStats() {
-    totalOpportunities.textContent = opportunities.length;
+    if (totalOpportunities) totalOpportunities.textContent = opportunities.length;
 
     if (opportunities.length > 0) {
         const best = Math.max(...opportunities.map(o => o.roi));
-        bestRoi.textContent = `${best}%`;
+        if (bestRoi) bestRoi.textContent = `${best}%`;
 
         const totalProfitValue = opportunities.reduce((sum, o) => sum + o.profit, 0);
-        totalProfit.textContent = `€${totalProfitValue.toFixed(2)}`;
+        if (totalProfit) totalProfit.textContent = `€${totalProfitValue.toFixed(2)}`;
     } else {
-        bestRoi.textContent = '0%';
-        totalProfit.textContent = '€0';
+        if (bestRoi) bestRoi.textContent = '0%';
+        if (totalProfit) totalProfit.textContent = '€0';
     }
 }
 

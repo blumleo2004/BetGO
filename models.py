@@ -49,6 +49,14 @@ class BookmakerAccount(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Bonus tracking (supports multiple bonuses via JSON list)
+    bonus_balance = db.Column(db.Float, default=0.0)          # aktuelles Bonus-Guthaben gesamt
+    bonus_wagering_req = db.Column(db.Float, default=0.0)     # Umsatzbedingung (z.B. 5x) — legacy
+    bonus_wagered = db.Column(db.Float, default=0.0)          # bereits umgesetzt gesamt
+    bonus_target = db.Column(db.Float, default=0.0)           # Gesamtziel (bonus * req) — legacy
+    bonus_details_json = db.Column(db.Text, default='[]')     # JSON: [{amount, target, wagered, min_odds, expires_at, label}]
+    deposit_pending = db.Column(db.Float, default=0.0)        # noch nicht verfügbare Einzahlung
+
     # Relationships
     activity = db.relationship('AccountActivity', backref='account', lazy=True,
                                 cascade='all, delete-orphan')

@@ -148,7 +148,10 @@ def scan_arbitrage():
         sports = [s for s in sports if s]
     if bookmakers:
         bookmakers = [b for b in bookmakers if b]
-    
+    # Default: nur eigene Bookmaker scannen (spart Credits)
+    if not bookmakers:
+        bookmakers = config.MY_BOOKMAKERS
+
     # Scan for opportunities
     opportunities = engine.scan_for_arbitrage(
         sports=sports if sports else None,
@@ -553,23 +556,22 @@ def account_ban_risk(account_id):
 
 @app.route('/api/accounts/<int:account_id>/mug-suggestion')
 def account_mug_suggestion(account_id):
-    import account_manager
-    import mug_bet_advisor
+    import account_manager, strategy_advisor
     account = account_manager.get_account(account_id)
     if not account:
         return jsonify({'error': 'Not found'}), 404
-    arb_count = mug_bet_advisor.get_arb_count_since_last_mug(account_id)
-    return jsonify(mug_bet_advisor.get_mug_suggestion(account, arb_count))
+    return jsonify(strategy_advisor.get_account_strategy(account, 0))
 
 
 @app.route('/api/accounts/<int:account_id>/mug-record', methods=['POST'])
 def record_mug_bet_endpoint(account_id):
-    import mug_bet_advisor
+    import account_manager
     data = request.get_json() or {}
     stake = float(data.get('stake', 0))
     if stake <= 0:
         return jsonify({'error': 'stake required'}), 400
-    return jsonify(mug_bet_advisor.record_mug_bet(account_id, stake, data.get('notes')))
+    account_manager.record_bet_placed(account_id, stake)
+    return jsonify({'success': True, 'account_id': account_id, 'stake': stake})
 
 
 @app.route('/api/accounts/bookmaker/<bookmaker_key>')
@@ -696,6 +698,122 @@ def accounts_page():
     return render_template('accounts.html')
 
 
+# ============ BETFAIR API ENDPOINTS ============
+
+@app.route('/api/strategy/portfolio')
+def strategy_portfolio():
+    """Gesamtübersicht aller Konten mit Strategie-Empfehlungen."""
+    import account_manager, strategy_advisor
+    accounts = account_manager.get_accounts()
+    return jsonify(strategy_advisor.get_portfolio_overview(accounts))
+
+
+@app.route('/api/strategy/account/<int:account_id>')
+def strategy_account(account_id):
+    import account_manager, strategy_advisor
+    account = account_manager.get_account(account_id)
+    if not account:
+        return jsonify({'error': 'Not found'}), 404
+    return jsonify(strategy_advisor.get_account_strategy(account, 0))
+
+
+@app.route('/api/strategy/all')
+def strategy_all():
+    import account_manager, strategy_advisor
+    accounts = account_manager.get_accounts()
+    return jsonify([strategy_advisor.get_account_strategy(acc, 0) for acc in accounts])
+
+
+@app.route('/api/accounts/<int:account_id>/bonus', methods=['POST'])
+def set_account_bonus(account_id):
+    """
+    Bonus-Details eintragen. Erwartet entweder:
+    - bonuses: [{label, amount, target, wagered, min_odds, expires_at}]  (neu, präzise)
+    - oder legacy: {bonus_balance, wagering_req, already_wagered, deposit_pending}
+    """
+    import account_manager
+    data = request.get_json() or {}
+
+    if 'bonuses' in data:
+        result = account_manager.set_bonuses(
+            account_id=account_id,
+            bonuses=data['bonuses'],
+            deposit_pending=float(data.get('deposit_pending', 0)),
+        )
+    else:
+        result = account_manager.set_bonus(
+            account_id=account_id,
+            bonus_balance=float(data.get('bonus_balance', 0)),
+            wagering_req=float(data.get('wagering_req', 5)),
+            already_wagered=float(data.get('already_wagered', 0)),
+            deposit_pending=float(data.get('deposit_pending', 0)),
+        )
+    if not result:
+        return jsonify({'error': 'Not found'}), 404
+    return jsonify(result)
+
+
+@app.route('/api/strategy/llm', methods=['POST'])
+def llm_strategy():
+    return jsonify({'configured': False, 'message': 'LLM advisor not available'})
+
+
+@app.route('/api/strategy/llm/bonus/<int:account_id>', methods=['POST'])
+def llm_bonus_strategy(account_id):
+    return jsonify({'configured': False, 'message': 'LLM advisor not available'})
+
+
+@app.route('/api/strategy/llm/configure', methods=['POST'])
+def llm_configure():
+    return jsonify({'configured': False, 'message': 'LLM advisor not available'})
+
+
+@app.route('/api/strategy/llm/status')
+def llm_status():
+    return jsonify({'configured': False})
+
+
+@app.route('/api/betfair/status')
+def betfair_status():
+    import betfair_api
+    return jsonify(betfair_api.get_status())
+
+
+@app.route('/api/betfair/configure', methods=['POST'])
+def betfair_configure():
+    import betfair_api
+    data = request.get_json() or {}
+    username = data.get('username', '').strip()
+    password = data.get('password', '').strip()
+    app_key = data.get('app_key', '').strip()
+    if not username or not password or not app_key:
+        return jsonify({'error': 'username, password und app_key erforderlich'}), 400
+    result = betfair_api.configure(username, password, app_key)
+    return jsonify(result)
+
+
+@app.route('/api/betfair/odds')
+def betfair_odds():
+    import betfair_api
+    hours = request.args.get('hours', 24, type=int)
+    games = betfair_api.get_soccer_odds(hours)
+    return jsonify({'count': len(games), 'games': games})
+
+
+@app.route('/api/betfair/test', methods=['POST'])
+def betfair_test():
+    """Test Betfair login and fetch a small batch of odds."""
+    import betfair_api
+    status = betfair_api.get_status()
+    if not status['configured']:
+        return jsonify({'success': False, 'error': 'Nicht konfiguriert'}), 400
+    ok, err = betfair_api.provider.session.login()
+    if not ok:
+        return jsonify({'success': False, 'error': err})
+    games = betfair_api.get_soccer_odds(hours_ahead=6)
+    return jsonify({'success': True, 'markets_found': len(games), 'status': betfair_api.get_status()})
+
+
 # ============ DEBUG ENDPOINTS ============
 
 @app.route('/api/debug')
@@ -735,24 +853,27 @@ def health_check():
     return jsonify(checks)
 
 
+@app.route('/healthz')
+def healthz():
+    return jsonify({'status': 'ok'}), 200
+
+
 if __name__ == '__main__':
-    print("BETGO Dashboard starting...")
-    print("Open http://localhost:5000 in your browser")
-    print("Simulation: http://localhost:5000/simulation")
-    print("Accounts: http://localhost:5000/accounts")
-    print("Debug: http://localhost:5000/api/debug/health")
+    import os, api_optimizer, auto_scanner
 
-    import api_optimizer
-    try:
-        status = api_optimizer.scheduler.get_status()
-        print(f"Scheduler: {str(status.get('status','')).encode('ascii','replace').decode()}")
-    except Exception:
-        pass
+    port = int(os.environ.get('PORT', 5000))
+    is_cloud = os.environ.get('RAILWAY_ENVIRONMENT') or os.environ.get('RENDER') or port != 5000
+
     keys_count = len(api_optimizer.key_manager.keys)
-    print(f"The Odds API: {keys_count} keys loaded")
+    discord_ok = bool(auto_scanner.scanner.notifier.webhook_url)
 
-    import auto_scanner
-    print(f"Discord: {'Connected' if auto_scanner.scanner.notifier.webhook_url else 'Not configured'}")
-    print("To start auto-scanning: POST /api/scanner/start")
+    print(f"BETGO starting on port {port} ({'cloud' if is_cloud else 'local'})")
+    print(f"API keys: {keys_count} | Discord: {'OK' if discord_ok else 'not configured'}")
 
-    app.run(debug=True, port=5000)
+    # Auto-start scanner in cloud — no manual trigger needed
+    if is_cloud or os.environ.get('AUTO_START_SCANNER', '').lower() == 'true':
+        auto_scanner.scanner.configure(skip_off_peak=False)  # scan 24/7 in cloud
+        auto_scanner.scanner.start()
+        print("Auto-scanner started")
+
+    app.run(host='0.0.0.0', port=port, debug=not is_cloud)

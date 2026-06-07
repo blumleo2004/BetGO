@@ -59,7 +59,8 @@ class ArbEngine:
             api_key = self._get_api_key()
             response = requests.get(
                 f'{self.base_url}/sports',
-                params={'api_key': api_key}
+                params={'api_key': api_key},
+                timeout=10
             )
             self._update_usage(response, api_key)
             self.api_calls += 1
@@ -98,7 +99,8 @@ class ArbEngine:
             
             response = requests.get(
                 f'{self.base_url}/sports/{sport}/odds',
-                params=params
+                params=params,
+                timeout=15
             )
             self._update_usage(response, api_key)
             self.api_calls += 1
@@ -207,13 +209,26 @@ class ArbEngine:
         """
         opportunities = []
         
-        # Get sports if not provided
+        # Get sports if not provided — default to top sports only (alle scannen = 50+ API calls)
         if sports is None:
-            all_sports = self.get_sports()
-            sports = [s['key'] for s in all_sports if 'winner' not in s['key'] and 'championship' not in s['key']]
+            sports = [
+                'soccer_epl', 'soccer_germany_bundesliga', 'soccer_spain_la_liga',
+                'soccer_italy_serie_a', 'soccer_france_ligue_one', 'soccer_uefa_champs_league',
+                'soccer_austria_bundesliga', 'tennis_atp_french_open', 'basketball_nba',
+            ]
         
         for sport in sports:
             games = self.get_odds(sport, markets, bookmakers)
+
+            # Merge Betfair Exchange odds if configured (soccer only for now)
+            try:
+                import betfair_api
+                if betfair_api.provider.session.is_configured() and 'soccer' in sport:
+                    bf_games = betfair_api.provider.get_odds('soccer', hours_ahead=max_hours or 48)
+                    if bf_games:
+                        games = betfair_api.merge_with_odds_api(games, bf_games)
+            except Exception as _bf_err:
+                pass  # Betfair unavailable — continue with Odds API only
             
             for game in games:
                 # Filter by time if specified

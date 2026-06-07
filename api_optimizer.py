@@ -31,11 +31,15 @@ class APIKeyManager:
         self.current_index = 0
     
     def _load_keys(self) -> List[dict]:
-        """Load The Odds API keys from file"""
+        """Load The Odds API keys — .env takes precedence over api_keys.json"""
+        import os
+        raw = os.environ.get('THE_ODDS_API_KEYS') or os.environ.get('THE_ODDS_API_KEY')
+        if raw:
+            return [{'key': k.strip(), 'remaining': None, 'last_used': None}
+                    for k in raw.split(',') if k.strip()]
         if KEYS_PATH.exists():
             with open(KEYS_PATH, 'r') as f:
                 data = json.load(f)
-                # Support both old and new format
                 if 'the_odds_api' in data:
                     return data['the_odds_api'].get('keys', [])
                 return data.get('keys', [])
@@ -91,9 +95,18 @@ class APIKeyManager:
         self._save()
     
     def _save(self):
-        """Save current keys state"""
+        """Save current keys state — preserves other keys (gemini, betfair, etc.)"""
+        existing = {}
+        if KEYS_PATH.exists():
+            try:
+                with open(KEYS_PATH, 'r') as f:
+                    existing = json.load(f)
+            except Exception:
+                pass
+        existing['the_odds_api'] = {'keys': self.keys}
+        existing['updated_at'] = datetime.now().isoformat()
         with open(KEYS_PATH, 'w') as f:
-            json.dump({'keys': self.keys, 'updated_at': datetime.now().isoformat()}, f, indent=2)
+            json.dump(existing, f, indent=2)
     
     def get_best_key(self) -> Optional[str]:
         """Get the key with most remaining credits"""

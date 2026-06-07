@@ -7,6 +7,20 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
 
-# Node
+# Secrets & config
+.env
+api_keys.json
+discord_config.json
+
+# Database & runtime data
+*.db
+instance/
+simulation_data.json
+api_cache.json
+*.log
+
+# Node (leftovers)
 node_modules/
+package-lock.json

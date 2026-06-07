@@ -252,6 +252,63 @@ def reset_daily_counters():
     db.session.commit()
 
 
+def set_bonuses(account_id: int, bonuses: list, deposit_pending: float = 0.0) -> dict | None:
+    """
+    Set all bonuses for an account at once.
+    bonuses: [{label, amount, target, wagered, min_odds, expires_at}]
+    """
+    import json
+    a = BookmakerAccount.query.get(account_id)
+    if not a:
+        return None
+    a.bonus_details_json = json.dumps(bonuses)
+    a.bonus_balance = sum(b.get('amount', 0) for b in bonuses)
+    a.bonus_wagered = sum(b.get('wagered', 0) for b in bonuses)
+    a.bonus_target = sum(b.get('target', 0) for b in bonuses)
+    a.deposit_pending = deposit_pending
+    a.updated_at = datetime.utcnow()
+    db.session.commit()
+    return _to_dict(a)
+
+
+def set_bonus(account_id: int, bonus_balance: float, wagering_req: float,
+              already_wagered: float = 0.0, deposit_pending: float = 0.0) -> dict | None:
+    """Set bonus details and pending deposit for an account."""
+    a = BookmakerAccount.query.get(account_id)
+    if not a:
+        return None
+    a.bonus_balance = bonus_balance
+    a.bonus_wagering_req = wagering_req
+    a.bonus_wagered = already_wagered
+    a.bonus_target = bonus_balance * wagering_req
+    a.deposit_pending = deposit_pending
+    a.updated_at = datetime.utcnow()
+    if bonus_balance > 0:
+        db.session.add(AccountActivity(
+            account_id=account_id,
+            activity_type='balance_updated',
+            amount=bonus_balance,
+            notes=f'Bonus €{bonus_balance:.2f} eingetragen (x{wagering_req} Umsatz)'
+        ))
+    db.session.commit()
+    return _to_dict(a)
+
+
+def record_wagering_progress(account_id: int, stake: float):
+    """Add to bonus wagering progress."""
+    a = BookmakerAccount.query.get(account_id)
+    if not a:
+        return
+    a.bonus_wagered = (a.bonus_wagered or 0) + stake
+    # Clear bonus if target reached
+    if a.bonus_target and a.bonus_wagered >= a.bonus_target:
+        a.bonus_balance = 0
+        a.bonus_wagered = 0
+        a.bonus_target = 0
+    a.updated_at = datetime.utcnow()
+    db.session.commit()
+
+
 def reset_weekly_counters():
     """Reset weekly bet counters for all accounts (call on Monday)."""
     db.session.query(BookmakerAccount).update({BookmakerAccount.weekly_bet_count: 0})
@@ -301,4 +358,10 @@ def _to_dict(a: BookmakerAccount) -> dict:
         'created_at': a.created_at.isoformat() if a.created_at else None,
         'updated_at': a.updated_at.isoformat() if a.updated_at else None,
         'ban_risk': get_ban_risk_score(a.id),
+        'bonus_balance': a.bonus_balance or 0.0,
+        'bonus_wagering_req': a.bonus_wagering_req or 0.0,
+        'bonus_wagered': a.bonus_wagered or 0.0,
+        'bonus_target': a.bonus_target or 0.0,
+        'deposit_pending': a.deposit_pending or 0.0,
+        'bonus_details_json': a.bonus_details_json or '[]',
     }

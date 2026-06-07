@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         .simulation-badge {
             background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
@@ -313,6 +314,17 @@
             </div>
         </div>
 
+        <!-- P&L Timeline Chart -->
+        <div class="analytics-section" id="pnl-chart-section" style="display:none;">
+            <div class="section-header">
+                <h3 class="section-title">📈 P&L Timeline (30 Tage)</h3>
+                <span id="pnl-summary" style="color:var(--text-secondary);font-size:0.85rem;"></span>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:var(--radius-md);padding:1.25rem;">
+                <canvas id="pnl-chart" height="100"></canvas>
+            </div>
+        </div>
+
         <!-- Bet History -->
         <div class="bet-history">
             <div class="section-header">
@@ -384,7 +396,7 @@
                 container.innerHTML = Object.values(merged).map(bm => {
                     const displayName = bm.display_name || bm.name;
                     const acctRows = bm.accounts.map(a => {
-                        const riskScore = a.ban_risk_score;
+                        const riskScore = a.ban_risk?.score;
                         return `<div style="font-size:0.78rem;color:var(--text-secondary);display:flex;align-items:center;gap:4px;margin-top:3px;">
                             ${statusDot(a.status)}
                             <span>${a.user_label || a.bookmaker}</span>
@@ -612,13 +624,60 @@
             }
         });
 
+        // P&L Timeline Chart
+        let pnlChart = null;
+        async function loadPnlChart() {
+            try {
+                const res = await fetch('/api/analytics/pnl/timeline?days=30&granularity=day');
+                const data = await res.json();
+                if (!data || data.length === 0) return;
+
+                document.getElementById('pnl-chart-section').style.display = '';
+                const totalProfit = data[data.length - 1]?.cumulative_profit ?? 0;
+                document.getElementById('pnl-summary').textContent =
+                    `Kumuliert: ${totalProfit >= 0 ? '+' : ''}€${totalProfit.toFixed(2)}`;
+
+                const labels = data.map(d => d.date);
+                const profits = data.map(d => d.cumulative_profit);
+                const color = totalProfit >= 0 ? '#22c55e' : '#ef4444';
+
+                const ctx = document.getElementById('pnl-chart').getContext('2d');
+                if (pnlChart) pnlChart.destroy();
+                pnlChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [{
+                            label: 'Kumulierter Gewinn (€)',
+                            data: profits,
+                            borderColor: color,
+                            backgroundColor: color + '22',
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: data.length > 20 ? 0 : 3,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { ticks: { color: '#9ca3af', maxTicksLimit: 8 }, grid: { color: '#1f2937' } },
+                            y: { ticks: { color: '#9ca3af', callback: v => '€' + v.toFixed(0) }, grid: { color: '#1f2937' } }
+                        }
+                    }
+                });
+            } catch (e) { /* silent — no data yet */ }
+        }
+
         // Initial load
         loadSimulationData();
         loadBookmakerBalances();
+        loadPnlChart();
 
         // Auto-refresh every 30 seconds
         setInterval(loadSimulationData, 30000);
         setInterval(loadBookmakerBalances, 60000);
+        setInterval(loadPnlChart, 120000);
     </script>
 </body>
 

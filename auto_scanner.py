@@ -1,6 +1,6 @@
 """
-BETGO Auto Scanner with Discord Notifications
-Runs in background, scans for arbitrage, auto-places simulation bets, and notifies via Discord
+BETGO Auto Scanner with Telegram Notifications
+Runs in background, scans for arbitrage, auto-places simulation bets, and notifies via Telegram
 """
 
 import time
@@ -15,90 +15,72 @@ from pathlib import Path
 import arb_engine
 import simulation
 import tournament_filter
+import stealth
 
 
-class DiscordNotifier:
-    """Send notifications to Discord via webhook"""
-    
-    def __init__(self, webhook_url: str = None):
-        self.webhook_url = webhook_url
-        self._load_webhook()
-    
-    def _load_webhook(self):
-        """Load webhook URL from config"""
-        config_path = Path(__file__).parent / 'discord_config.json'
-        if config_path.exists():
-            with open(config_path, 'r') as f:
-                data = json.load(f)
-                self.webhook_url = data.get('webhook_url')
-    
-    def set_webhook(self, url: str):
-        """Set and save webhook URL"""
-        self.webhook_url = url
-        config_path = Path(__file__).parent / 'discord_config.json'
-        with open(config_path, 'w') as f:
-            json.dump({'webhook_url': url}, f, indent=2)
-    
-    def send(self, title: str, description: str, color: int = 0x00FF00, fields: list = None):
-        """Send embed message to Discord"""
-        if not self.webhook_url:
-            print("⚠️ Discord webhook not configured")
+class TelegramNotifier:
+    """Send notifications via Telegram Bot API"""
+
+    API_URL = "https://api.telegram.org/bot{token}/sendMessage"
+
+    def __init__(self):
+        self.bot_token = None
+        self.chat_id = None
+        self._load_config()
+
+    def _load_config(self):
+        import config as _cfg
+        self.bot_token = getattr(_cfg, 'TELEGRAM_BOT_TOKEN', None)
+        self.chat_id = getattr(_cfg, 'TELEGRAM_CHAT_ID', None)
+
+    @property
+    def configured(self) -> bool:
+        return bool(self.bot_token and self.chat_id)
+
+    def send(self, text: str) -> bool:
+        if not self.configured:
+            print("[Telegram] not configured — set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID in .env")
             return False
-        
-        embed = {
-            "title": title,
-            "description": description,
-            "color": color,
-            "timestamp": datetime.utcnow().isoformat(),
-            "footer": {"text": "BETGO Auto Scanner"}
-        }
-        
-        if fields:
-            embed["fields"] = fields
-        
-        payload = {"embeds": [embed]}
-        
         try:
-            response = requests.post(self.webhook_url, json=payload)
-            return response.status_code == 204
+            url = self.API_URL.format(token=self.bot_token)
+            resp = requests.post(url, json={
+                "chat_id": self.chat_id,
+                "text": text,
+                "parse_mode": "Markdown",
+            }, timeout=10)
+            return resp.ok
         except Exception as e:
-            print(f"Discord error: {e}")
+            print(f"[Telegram] error: {e}")
             return False
-    
-    def notify_bet_placed(self, bet_data: dict):
-        """Send notification for placed simulation bet"""
-        opp = bet_data.get('opportunity', {})
-        
-        fields = [
-            {"name": "🏆 Sport", "value": opp.get('sport', 'Unknown'), "inline": True},
-            {"name": "📈 ROI", "value": f"{opp.get('roi', 0):.2f}%", "inline": True},
-            {"name": "💰 Investment", "value": f"€{bet_data.get('total_investment', 0):.2f}", "inline": True},
-            {"name": "🎯 Match", "value": f"{opp.get('home_team', '?')} vs {opp.get('away_team', '?')}", "inline": False},
-        ]
-        
-        # Add bet details
+
+    def notify_arb_found(self, opp: dict) -> bool:
         bets = opp.get('bets', [])
+        delays = stealth.get_leg_placement_delays(len(bets))
+
+        lines = [
+            f"*ARB GEFUNDEN* — {opp.get('roi', 0):.2f}% ROI",
+            f"*{opp.get('home_team', '?')} vs {opp.get('away_team', '?')}*",
+            "",
+        ]
         for i, bet in enumerate(bets):
-            fields.append({
-                "name": f"Bet {i+1}: {bet.get('bookmaker', '?')}",
-                "value": f"{bet.get('outcome', '?')} @ {bet.get('odds', 0):.2f} - €{bet.get('stake', 0):.2f}",
-                "inline": True
-            })
-        
+            rounded = stealth.round_stake_natural(bet.get('stake', 0))
+            timing = "sofort" if delays[i] == 0 else f"+{delays[i]}s"
+            lines.append(
+                f"Leg {i+1}: *{bet.get('bookmaker','?')}* | "
+                f"{bet.get('outcome','?')} @ {bet.get('odds',0):.2f} | "
+                f"*€{rounded:.0f}* ({timing})"
+            )
+
+        lines += ["", f"_BETGO WM 2026_"]
+        return self.send("\n".join(lines))
+
+    def notify_scan_summary(self, opportunities_found: int, bets_placed: int) -> bool:
         return self.send(
-            title="🎲 New Simulation Bet Placed!",
-            description=f"Found arbitrage opportunity with {opp.get('roi', 0):.2f}% ROI",
-            color=0x00FF00,  # Green
-            fields=fields
+            f"Scan: *{opportunities_found}* Arbs gefunden, *{bets_placed}* platziert"
         )
-    
-    def notify_scan_summary(self, opportunities_found: int, bets_placed: int):
-        """Send scan summary"""
-        return self.send(
-            title="📊 Scan Complete",
-            description=f"Found {opportunities_found} opportunities, placed {bets_placed} simulation bets",
-            color=0x3498DB  # Blue
-        )
+
+    def test(self) -> bool:
+        return self.send("*BETGO* Telegram-Verbindung OK!")
 
 
 class OpportunityDeduplicator:
@@ -134,7 +116,7 @@ class AutoScanner:
 
     def __init__(self):
         self.engine = arb_engine.ArbEngine()
-        self.notifier = DiscordNotifier()
+        self.notifier = TelegramNotifier()
         self.deduplicator = OpportunityDeduplicator(window_hours=2)
         self.running = False
 
@@ -204,8 +186,10 @@ class AutoScanner:
             self.max_investment = kwargs['max_investment']
         if 'auto_bet' in kwargs:
             self.auto_bet = kwargs['auto_bet']
-        if 'webhook_url' in kwargs:
-            self.notifier.set_webhook(kwargs['webhook_url'])
+        if 'telegram_token' in kwargs:
+            self.notifier.bot_token = kwargs['telegram_token']
+        if 'telegram_chat_id' in kwargs:
+            self.notifier.chat_id = kwargs['telegram_chat_id']
         if 'skip_off_peak' in kwargs:
             self.skip_off_peak = kwargs['skip_off_peak']
         if 'min_quality_for_discord' in kwargs:
@@ -222,10 +206,12 @@ class AutoScanner:
         }
         
         try:
-            # Run the scan
+            # Run the scan — nur eigene Bookmaker (spart Credits, relevanter)
+            import config as _cfg
             opportunities = self.engine.scan_for_arbitrage(
                 min_roi=self.min_roi,
-                investment=self.max_investment
+                investment=self.max_investment,
+                bookmakers=_cfg.MY_BOOKMAKERS,
             )
             results['opportunities'] = opportunities
             self.stats['scans'] += 1
@@ -247,6 +233,11 @@ class AutoScanner:
                     if opp.get('roi', 0) < effective_min_roi:
                         continue
 
+                    # Apply stealth stake rounding before simulation
+                    for bet in opp.get('bets', []):
+                        if 'stake' in bet:
+                            bet['stake'] = stealth.round_stake_natural(bet['stake'])
+
                     bet_result = simulation.place_virtual_bet(
                         opp,
                         investment=min(self.max_investment, 100)
@@ -257,10 +248,10 @@ class AutoScanner:
                         self.stats['bets_placed'] += 1
                         self.stats['total_invested'] += bet_result.get('total_investment', 0)
 
-                        # Discord: only for high-quality new opportunities
+                        # Telegram: only for high-quality new opportunities
                         quality = opp.get('quality_score', 0)
                         if quality >= self.min_quality_for_discord and self.deduplicator.is_new(opp):
-                            self.notifier.notify_bet_placed(bet_result)
+                            self.notifier.notify_arb_found(opp)
                             self.stats['discord_pings'] += 1
                             print(f"   ✅ Placed bet: {opp.get('home_team')} vs {opp.get('away_team')} "
                                   f"({opp.get('roi'):.2f}% ROI, quality {quality:.0f})")
@@ -281,7 +272,7 @@ class AutoScanner:
         print(f"   ⏰ Peak hours: {self.peak_start}:00 - {self.peak_end}:00")
         print(f"   ⏱️ Scan interval: {self.peak_interval // 60} minutes")
         print(f"   💰 Min ROI: {self.min_roi}% | Max Investment: €{self.max_investment}")
-        print(f"   💬 Discord: {'Connected' if self.notifier.webhook_url else 'Not configured'}\n")
+        print(f"   Telegram: {'Connected' if self.notifier.configured else 'Not configured'}\n")
         
         while self.running:
             # Check if in peak hours
@@ -356,7 +347,7 @@ class AutoScanner:
             'min_roi': self.min_roi,
             'max_investment': self.max_investment,
             'auto_bet': self.auto_bet,
-            'discord_configured': bool(self.notifier.webhook_url),
+            'telegram_configured': self.notifier.configured,
             'last_scan': self.last_scan.isoformat() if self.last_scan else None,
             'next_scan': datetime.fromtimestamp(self.next_scan).isoformat() if self.next_scan else None,
             'stats': self.stats
@@ -388,34 +379,14 @@ def configure(**kwargs):
     return get_status()
 
 
-def set_discord_webhook(url: str):
-    """Set Discord webhook URL"""
-    scanner.notifier.set_webhook(url)
-    return {"success": True, "message": "Discord webhook configured"}
-
-
-def test_discord():
-    """Test Discord notification"""
-    return scanner.notifier.send(
-        title="🔔 Test Notification",
-        description="BETGO Discord notifications are working!",
-        color=0x9B59B6,
-        fields=[
-            {"name": "Status", "value": "Connected ✅", "inline": True},
-            {"name": "Time", "value": datetime.now().strftime("%H:%M:%S"), "inline": True}
-        ]
-    )
+def test_telegram():
+    """Test Telegram notification"""
+    return scanner.notifier.test()
 
 
 if __name__ == "__main__":
-    # Test run
     print("BETGO Auto Scanner")
     print("==================")
-    
-    # Check if Discord is configured
-    if not scanner.notifier.webhook_url:
-        print("\n⚠️ Discord not configured!")
-        print("Set webhook with: auto_scanner.set_discord_webhook('YOUR_WEBHOOK_URL')")
-    
-    # Run single scan
+    if not scanner.notifier.configured:
+        print("Telegram not configured — set TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID in .env")
     scanner.scan_once()

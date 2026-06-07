@@ -2,38 +2,12 @@
 # Austria-accessible bookmakers and API settings
 
 import os
-import json
 from pathlib import Path
+from dotenv import load_dotenv
 
-def _load_api_key():
-    """Load API key from environment variable or api_keys.json"""
-    # First try environment variable
-    env_key = os.environ.get('BETGO_API_KEY')
-    if env_key:
-        return env_key
-    
-    # Then try api_keys.json
-    keys_path = Path(__file__).parent / 'api_keys.json'
-    if keys_path.exists():
-        try:
-            with open(keys_path, 'r') as f:
-                data = json.load(f)
-                # Support multiple formats
-                if 'the_odds_api' in data:
-                    keys = data['the_odds_api'].get('keys', [])
-                    if keys:
-                        return keys[0].get('key') if isinstance(keys[0], dict) else keys[0]
-                elif 'keys' in data:
-                    keys = data['keys']
-                    if keys:
-                        return keys[0].get('key') if isinstance(keys[0], dict) else keys[0]
-        except (json.JSONDecodeError, KeyError):
-            pass
-    
-    # Return None if no key found - will need to be configured
-    return None
+load_dotenv(Path(__file__).parent / '.env')
 
-API_KEY = _load_api_key()
+API_KEY = os.environ.get('THE_ODDS_API_KEY')
 
 # Default settings
 DEFAULT_INVESTMENT = 500.00
@@ -129,6 +103,11 @@ BOOKMAKERS = {
         'color': '#6c5ce7'
     },
     # Austria-specific bookmakers
+    'admiral': {
+        'name': 'Admiral',
+        'url': 'https://www.admiral.at/',
+        'color': '#e30613'
+    },
     'interwetten': {
         'name': 'Interwetten',
         'url': 'https://www.interwetten.com/',
@@ -201,7 +180,7 @@ WM2026 = {
     'round_of_32_start': '2026-06-27',
     'knockout_start': '2026-07-01',
     'sport_key': 'soccer_fifa_world_cup',
-    'priority_bookmakers': ['pinnacle', 'bet365', 'bwin', 'tipico_de', 'betano'],
+    'priority_bookmakers': ['betfair_ex_eu', 'bet365', 'bwin', 'tipico_de', 'betatHome'],
     'min_roi_wm': 0.3,            # Accept thinner margins during WC (more volume)
 }
 
@@ -233,15 +212,36 @@ WM2026_QUALIFIED_TEAMS = [
     'New Zealand',
 ]
 
+# ─── Leos aktive Konten (Österreich) ─────────────────────────────────────────
+# Nur diese Bookmaker werden gescannt (spart API-Credits)
+# Admiral hat kein The-Odds-API-Key — im Dashboard als "manuell" markiert
+MY_BOOKMAKERS = [
+    'bet365',        # Bet365        (€0 — noch einzahlen)
+    'bwin',          # bwin          (€145 aktiv)
+    'betfair_ex_eu', # Betfair Exch. (€0 — Sharp-Referenz, entscheidend)
+    'betatHome',     # bet-at-home   (€0 — noch einzahlen)
+    'tipico_de',     # Tipico        (€1 aktiv)
+    'betway',        # Betway        (neu)
+    # Neu geplant (sobald Accounts erstellt):
+    # 'unibet_eu',   # Unibet
+    # '888sport',    # 888sport
+    # 'betway',      # Betway
+    # 'betsson',     # Betsson
+]
+# Admiral (€215) hat keinen The-Odds-API-Key.
+# Manuelle Strategie: Admiral-Quoten mit Betfair Exchange vergleichen.
+
 # ─── API endpoints ────────────────────────────────────────────────────────────
 API_BASE_URL = 'https://api.the-odds-api.com/v4'
 
-# Database Configuration
-SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///betgo.db')
+# ─── App Config ───────────────────────────────────────────────────────────────
+SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL', 'sqlite:///betgo.db')
 SQLALCHEMY_TRACK_MODIFICATIONS = False
-SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-me')
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 
 # Google OAuth
-GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
-GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 
