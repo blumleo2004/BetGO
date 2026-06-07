@@ -186,3 +186,14 @@ def get_recommended_investment(bankroll: float, roi: float,
 
     max_allowed = bankroll * 0.10
     return round(min(investment, max_allowed), 2)
+
+
+def jitter_stake(raw_stake: float, pct: float = 0.06) -> float:
+    if raw_stake == 0.0:
+        return 0.0
+    variation = random.uniform(-pct, pct)
+    return raw_stake * (1.0 + variation)
+
+
+def mug_bet_due(arb_count_since_last_mug: int, threshold: int = 5) -> bool:
+    return arb_count_since_last_mug >= threshold
