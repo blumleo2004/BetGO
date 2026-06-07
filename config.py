@@ -245,3 +245,18 @@ TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID')
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 
+# ─── Bookmaker Deep-Links für Telegram-Buttons ────────────────────────────────
+BOOKMAKER_URLS = {
+    'bet365':        'https://www.bet365.com/#/AC/B1/C1/D13/',
+    'bwin':          'https://sports.bwin.com/de/sports/fussball-4/wm-2026',
+    'betfair_ex_eu': 'https://www.betfair.com/exchange/plus/football',
+    'betfair':       'https://www.betfair.com/exchange/plus/football',
+    'tipico_de':     'https://www.tipico.at/de/sportwetten/fussball/wm-2026/',
+    'betatHome':     'https://www.bet-at-home.com/de/sport/fussball',
+    'betway':        'https://www.betway.com/sports/evt/football',
+    'admiral':       'https://www.admiral.at/de/sport/fussball/wm',
+    'unibet_eu':     'https://www.unibet.eu/betting/sports/filter/football/all/matches',
+    '888sport':      'https://www.888sport.com/#/filter/football/',
+    'betsson':       'https://www.betsson.com/de/sportwetten/fussball',
+}
+
