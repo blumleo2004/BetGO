@@ -166,7 +166,8 @@ class AutoScanner:
             'discord_pings': 0,
             'dedup_skipped': 0,
         }
-    
+        self._mug_counters: dict = {}
+
     def is_peak_hours(self) -> bool:
         """Check if current time is within peak betting hours"""
         current_hour = datetime.now().hour
@@ -276,6 +277,13 @@ class AutoScanner:
                         if quality >= self.min_quality_for_discord and self.deduplicator.is_new(opp):
                             self.notifier.notify_arb_found(opp)
                             self.stats['discord_pings'] += 1
+                            for bet in opp.get('bets', []):
+                                bk = bet.get('bookmaker_key') or bet.get('bookmaker', '').lower()
+                                self._mug_counters[bk] = self._mug_counters.get(bk, 0) + 1
+                                if stealth.mug_bet_due(self._mug_counters[bk]):
+                                    bm_name = bet.get('bookmaker', bk)
+                                    self.notifier.notify_mug_bet(bk, bm_name)
+                                    self._mug_counters[bk] = 0
                             print(f"   ✅ Placed bet: {opp.get('home_team')} vs {opp.get('away_team')} "
                                   f"({opp.get('roi'):.2f}% ROI, quality {quality:.0f})")
                         else:
@@ -301,7 +309,9 @@ class AutoScanner:
             # Check if in peak hours
             if self.is_peak_hours():
                 self.scan_once()
-                wait_time = self.peak_interval
+                import random
+                jitter = random.randint(-300, 300)
+                wait_time = max(300, self.peak_interval + jitter)
                 self.next_scan = datetime.now().timestamp() + wait_time
                 print(f"   ⏰ Next scan in {wait_time // 60} minutes")
             else:
