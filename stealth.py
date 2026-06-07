@@ -189,7 +189,7 @@ def get_recommended_investment(bankroll: float, roi: float,
 
 
 def jitter_stake(raw_stake: float, pct: float = 0.06) -> float:
-    if raw_stake == 0.0:
+    if raw_stake <= 0.0:
         return 0.0
     variation = random.uniform(-pct, pct)
     return raw_stake * (1.0 + variation)

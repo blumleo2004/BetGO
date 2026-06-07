@@ -31,3 +31,7 @@ def test_mug_bet_due_threshold():
 def test_mug_bet_due_custom_threshold():
     assert mug_bet_due(3, threshold=3) is True
     assert mug_bet_due(2, threshold=3) is False
+
+
+def test_jitter_stake_negative():
+    assert jitter_stake(-10.0) == 0.0
