@@ -122,7 +122,7 @@ class AdmiralScraper:
         try:
             import arb_engine
             engine = arb_engine.ArbEngine()
-            betfair_data = engine.get_odds(['betfair_ex_eu'])
+            betfair_data = engine.get_odds('soccer_fifa_world_cup', bookmakers=['betfair_ex_eu'])
             for adm_event in events:
                 for bf_game in betfair_data:
                     home_match = adm_event['home'].lower() in bf_game.get('home_team', '').lower()
