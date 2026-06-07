@@ -167,6 +167,7 @@ class AutoScanner:
             'dedup_skipped': 0,
         }
         self._mug_counters: dict = {}
+        self._admiral = None
 
     def is_peak_hours(self) -> bool:
         """Check if current time is within peak betting hours"""
@@ -362,6 +363,14 @@ class AutoScanner:
         self.running = True
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
         self.thread.start()
+
+        try:
+            from admiral_scraper import AdmiralScraper
+            self._admiral = AdmiralScraper(notifier=self.notifier)
+            self._admiral.start(interval_seconds=600)
+            print("[AutoScanner] Admiral scraper started")
+        except Exception as e:
+            print(f"[AutoScanner] Admiral scraper failed to start: {e}")
 
         return {"success": True, "message": f"Auto scanner started (peak hours: {self.peak_start}:00-{self.peak_end}:00)"}
     

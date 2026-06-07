@@ -117,7 +117,51 @@ class AdmiralScraper:
 
         events = self._parse_wm_events(data)
         logger.info(f"[Admiral] {len(events)} WM events found")
-        return events
+
+        arbs_found = []
+        try:
+            import arb_engine
+            engine = arb_engine.ArbEngine()
+            betfair_data = engine.get_odds(['betfair_ex_eu'])
+            for adm_event in events:
+                for bf_game in betfair_data:
+                    home_match = adm_event['home'].lower() in bf_game.get('home_team', '').lower()
+                    away_match = adm_event['away'].lower() in bf_game.get('away_team', '').lower()
+                    if not (home_match or away_match):
+                        continue
+                    for adm_outcome in adm_event['outcomes']:
+                        for bf_book in bf_game.get('bookmakers', []):
+                            if bf_book.get('key') != 'betfair_ex_eu':
+                                continue
+                            for mkt in bf_book.get('markets', []):
+                                for bf_outcome in mkt.get('outcomes', []):
+                                    if adm_outcome['name'].lower() not in bf_outcome.get('name', '').lower():
+                                        continue
+                                    combined = 1 / adm_outcome['odds'] + 1 / bf_outcome['price']
+                                    if combined < 1.0:
+                                        roi = round((1 / combined - 1) * 100, 2)
+                                        if roi >= 0.3:
+                                            arb = {
+                                                'home_team': adm_event['home'],
+                                                'away_team': adm_event['away'],
+                                                'roi': roi,
+                                                'bets': [
+                                                    {'bookmaker': 'Admiral', 'bookmaker_key': 'admiral',
+                                                     'outcome': adm_outcome['name'], 'odds': adm_outcome['odds'],
+                                                     'stake': 100 / (combined * adm_outcome['odds'] * 100)},
+                                                    {'bookmaker': 'Betfair', 'bookmaker_key': 'betfair_ex_eu',
+                                                     'outcome': bf_outcome['name'], 'odds': bf_outcome['price'],
+                                                     'stake': 100 / (combined * bf_outcome['price'] * 100)},
+                                                ]
+                                            }
+                                            arbs_found.append(arb)
+                                            if self.notifier:
+                                                self.notifier.notify_arb_found(arb)
+                                            logger.info(f"[Admiral] ARB: {adm_event['home']} vs {adm_event['away']} {roi}% ROI")
+        except Exception as e:
+            logger.warning(f"[Admiral] Betfair comparison error: {e}")
+
+        return arbs_found
 
     def _run_loop(self, interval_seconds=600):
         logger.info("[Admiral] Scraper thread started")
